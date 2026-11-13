@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/lib/db/schema";
-import { formatCurrency } from "@/lib/utils";
 import { ShoppingCart, Plus, Minus, PackageCheck, AlertCircle, XCircle } from "lucide-react";
 
 export interface ProductCardProps {
@@ -114,18 +113,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           )}
         </div>
 
-        {/* Pricing & Add to Cart Controls */}
+        {/* Add to Cart Controls */}
         <div className="pt-3 border-t border-slate-100 mt-2">
-          <div className="flex items-baseline justify-between mb-3">
-            <span className="text-xs text-slate-400 font-medium">Price</span>
-            <span
-              data-testid="product-price"
-              className="text-lg font-bold text-slate-900"
-            >
-              {formatCurrency(product.priceCents)}
-            </span>
-          </div>
-
           <div className="flex items-center gap-2">
             {/* Quantity Stepper */}
             <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">

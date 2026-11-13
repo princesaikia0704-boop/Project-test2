@@ -295,7 +295,9 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
           pathname === "/api/admin/approvals" ||
           pathname.startsWith("/api/admin/approvals/") ||
           pathname === "/admin/approvals" ||
-          pathname.startsWith("/admin/approvals/");
+          pathname.startsWith("/admin/approvals/") ||
+          pathname === "/api/admin/orders" ||
+          pathname.startsWith("/api/admin/orders/");
 
         const isRestrictedAdminAction =
           pathname.startsWith("/api/admin/store-config") ||

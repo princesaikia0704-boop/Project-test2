@@ -401,7 +401,14 @@ export class MockDataStore {
       list = list.filter((o) => o.userId === filter.userId);
     }
     if (filter?.departmentId) {
-      list = list.filter((o) => o.departmentId === filter.departmentId);
+      list = list.filter(
+        (o) =>
+          o.departmentId === filter.departmentId ||
+          (filter.departmentId === "dept-eng" &&
+            o.departmentId === "10000000-0000-0000-0000-000000000001") ||
+          (filter.departmentId === "10000000-0000-0000-0000-000000000001" &&
+            o.departmentId === "dept-eng")
+      );
     }
     if (filter?.status) {
       list = list.filter((o) => o.status === filter.status);

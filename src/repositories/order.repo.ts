@@ -39,6 +39,7 @@ export interface IOrderRepository {
   findByIdWithItems(orderId: string, tx?: any): Promise<OrderWithRelations | null>;
   listByUserId(userId: string, options?: { limit?: number; offset?: number }): Promise<Order[]>;
   listPendingApprovals(departmentId?: string, options?: { limit?: number; offset?: number }): Promise<Order[]>;
+  listDepartmentOrders(departmentId?: string, options?: { status?: Order["status"]; limit?: number; offset?: number }): Promise<Order[]>;
   updateStatus(
     orderId: string,
     status: Order["status"],
@@ -165,12 +166,24 @@ export class OrderRepository implements IOrderRepository {
         limit: options?.limit,
         offset: options?.offset,
       });
-      return orders as unknown as Order[];
+      return orders.map((o) => {
+        const detailed = mockDataStore.getOrderById(o.id);
+        if (!detailed) return o as unknown as Order;
+        return {
+          ...o,
+          items: detailed.items,
+          userName: detailed.user?.name || o.userId,
+          userEmail: detailed.user?.email || `${o.userId}@company.com`,
+          departmentName: detailed.department?.name || o.departmentId,
+        } as unknown as Order;
+      });
     }
 
     const conditions: any[] = [eq(schema.orders.status, "PENDING_APPROVAL")];
     if (departmentId) {
-      conditions.push(eq(schema.orders.departmentId, departmentId));
+      conditions.push(
+        sql`(${schema.orders.departmentId} = ${departmentId} OR (${departmentId} = 'dept-eng' AND ${schema.orders.departmentId} = '10000000-0000-0000-0000-000000000001'))`
+      );
     }
 
     const rows = await db
@@ -180,6 +193,56 @@ export class OrderRepository implements IOrderRepository {
       .orderBy(desc(schema.orders.createdAt))
       .limit(options?.limit ?? 50)
       .offset(options?.offset ?? 0);
+
+    return rows;
+  }
+
+  async listDepartmentOrders(
+    departmentId?: string,
+    options?: { status?: Order["status"]; limit?: number; offset?: number }
+  ): Promise<Order[]> {
+    if (isDatabaseMocked()) {
+      const orders = mockDataStore.getOrders({
+        departmentId,
+        status: options?.status,
+        limit: options?.limit ?? 100,
+        offset: options?.offset ?? 0,
+      });
+      return orders.map((o) => {
+        const detailed = mockDataStore.getOrderById(o.id);
+        if (!detailed) return o as unknown as Order;
+        return {
+          ...o,
+          items: detailed.items,
+          userName: detailed.user?.name || o.userId,
+          userEmail: detailed.user?.email || `${o.userId}@company.com`,
+          departmentName: detailed.department?.name || o.departmentId,
+        } as unknown as Order;
+      });
+    }
+
+    const conditions: any[] = [];
+    if (departmentId) {
+      conditions.push(
+        sql`(${schema.orders.departmentId} = ${departmentId} OR (${departmentId} = 'dept-eng' AND ${schema.orders.departmentId} = '10000000-0000-0000-0000-000000000001'))`
+      );
+    }
+    if (options?.status) {
+      conditions.push(eq(schema.orders.status, options.status));
+    }
+
+    const query = db.select().from(schema.orders);
+    const rows =
+      conditions.length > 0
+        ? await query
+            .where(and(...conditions))
+            .orderBy(desc(schema.orders.createdAt))
+            .limit(options?.limit ?? 100)
+            .offset(options?.offset ?? 0)
+        : await query
+            .orderBy(desc(schema.orders.createdAt))
+            .limit(options?.limit ?? 100)
+            .offset(options?.offset ?? 0);
 
     return rows;
   }

@@ -115,6 +115,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 
         {/* Add to Cart Controls */}
         <div className="pt-3 border-t border-slate-100 mt-2">
+          {/* Price detail commented out for now:
+          <div className="flex items-baseline justify-between mb-3">
+            <span className="text-xs text-slate-400 font-medium">Price</span>
+            <span
+              data-testid="product-price"
+              className="text-lg font-bold text-slate-900"
+            >
+              ${(product.priceCents / 100).toFixed(2)}
+            </span>
+          </div>
+          */}
           <div className="flex items-center gap-2">
             {/* Quantity Stepper */}
             <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">

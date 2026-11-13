@@ -185,18 +185,21 @@ export default function CartPage() {
 
         {/* Right Column: Budget Breakdown & Submit */}
         <div className="space-y-4">
+          {/* BudgetMeter commented out for now:
           <BudgetMeter
             totalCents={departmentBudget.totalCents}
             remainingCents={departmentBudget.remainingCents}
             cartTotalCents={cartTotalCents}
             showDetails={true}
           />
+          */}
 
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">
               Order Summary
             </h3>
 
+            {/* Price breakdown commented out for now:
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex justify-between">
                 <span>Subtotal</span>
@@ -215,8 +218,9 @@ export default function CartPage() {
                 <span className="font-black text-slate-900">{formatCurrency(cartTotalCents)}</span>
               </div>
             </div>
+            */}
 
-            {/* Approval Routing Notice */}
+            {/* Approval Routing Notice commented out for now:
             <div
               className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
                 isAutoApproved
@@ -240,6 +244,7 @@ export default function CartPage() {
                 </span>
               </div>
             </div>
+            */}
 
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
@@ -250,9 +255,9 @@ export default function CartPage() {
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={isSubmitting || isOverBudget}
+              disabled={isSubmitting}
               className={`w-full py-3 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-2 transition shadow-sm ${
-                isOverBudget
+                isSubmitting
                   ? "bg-slate-300 cursor-not-allowed"
                   : "bg-slate-900 hover:bg-slate-800 active:scale-98"
               }`}
@@ -264,7 +269,7 @@ export default function CartPage() {
                 </>
               ) : (
                 <>
-                  <span>Confirm & Submit Order ({formatCurrency(cartTotalCents)})</span>
+                  <span>Confirm & Submit Order</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

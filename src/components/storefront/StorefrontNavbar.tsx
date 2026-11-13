@@ -58,6 +58,13 @@ export const StorefrontNavbar: React.FC = () => {
 
           {/* Right Header Elements */}
           <div className="flex items-center gap-3">
+            {/* Department Budget Pill commented out for now:
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-medium text-emerald-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Engineering: $1,000.00 left</span>
+            </div>
+            */}
+
             {/* Persona Indicator & Switcher */}
             <Link
               href="/login"

@@ -151,9 +151,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <h4 className="text-xs font-semibold text-slate-900 truncate" title={product.name}>
                         {product.name}
                       </h4>
+                      {/* Price per item commented out for now:
                       <p className="text-xs text-slate-500 mb-1.5">
                         {formatCurrency(product.priceCents)} each
                       </p>
+                      */}
 
                       <div className="flex items-center justify-between">
                         {/* Stepper */}
@@ -180,9 +182,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                         {/* Subtotal & Remove */}
                         <div className="flex items-center gap-2">
+                          {/* Item total price commented out for now:
                           <span className="text-xs font-bold text-slate-900">
                             {formatCurrency(product.priceCents * quantity)}
                           </span>
+                          */}
                           <button
                             type="button"
                             onClick={() => removeFromCart(product.id)}
@@ -198,7 +202,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 ))}
               </div>
 
-              {/* Dynamic Budget Meter Integration */}
+              {/* Dynamic Budget Meter Integration commented out for now:
               <div className="pt-2">
                 <BudgetMeter
                   totalCents={departmentBudget.totalCents}
@@ -207,8 +211,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   showDetails={true}
                 />
               </div>
+              */}
 
-              {/* Approval Policy Status Chip */}
+              {/* Approval Policy Status Chip commented out for now:
               <div
                 className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
                   isAutoApproved
@@ -223,6 +228,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     : `Approval Required: Exceeds ${formatCurrency(autoApproveLimitCents)} threshold.`}
                 </span>
               </div>
+              */}
 
               {/* Error Message */}
               {errorMessage && (
@@ -238,12 +244,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* Footer Checkout Controls */}
         {items.length > 0 && (
           <div className="p-5 border-t border-slate-200 bg-slate-50 space-y-3">
+            {/* Cart Total commented out for now:
             <div className="flex justify-between items-baseline text-sm">
               <span className="text-slate-600">Cart Total</span>
               <span className="text-xl font-black text-slate-900">
                 {formatCurrency(cartTotalCents)}
               </span>
             </div>
+            */}
 
             <div className="flex gap-2">
               <Link
@@ -258,9 +266,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 type="button"
                 data-testid="checkout-submit-btn"
                 onClick={handleCheckout}
-                disabled={isSubmitting || isOverBudget}
+                disabled={isSubmitting}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold text-white transition-all ${
-                  isOverBudget
+                  isSubmitting
                     ? "bg-slate-400 cursor-not-allowed"
                     : "bg-slate-900 hover:bg-slate-800 active:scale-95 shadow"
                 }`}

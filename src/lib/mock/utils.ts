@@ -19,8 +19,9 @@ export function isMockKey(key: string | undefined | null): boolean {
 }
 
 export function isDatabaseMocked(): boolean {
-  if (process.env.ENABLE_MOCK_SERVICES === "true") return true;
+  if (process.env.MOCK_DATABASE === "false") return false;
   if (process.env.MOCK_DATABASE === "true") return true;
+  if (process.env.ENABLE_MOCK_SERVICES === "true") return true;
 
   const url = process.env.DATABASE_URL;
   if (!url || isMockKey(url)) return true;

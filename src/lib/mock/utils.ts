@@ -23,7 +23,7 @@ export function isDatabaseMocked(): boolean {
   if (process.env.MOCK_DATABASE === "true") return true;
   if (process.env.ENABLE_MOCK_SERVICES === "true") return true;
 
-  const url = process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
   if (!url || isMockKey(url)) return true;
 
   const lower = url.trim().toLowerCase();

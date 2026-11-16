@@ -48,7 +48,9 @@ function initializeDatabase() {
   }
 
   // 2. Production / Live Neon PostgreSQL Setup
-  const connectionString = process.env.DATABASE_URL!;
+  const connectionString =
+    process.env.DATABASE_URL_POOLED ||
+    process.env.DATABASE_URL!;
 
   // HTTP Driver: Ultra-fast read queries & edge operations
   if (!globalThis._drizzleHttpDb) {

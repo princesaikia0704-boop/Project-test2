@@ -8,6 +8,7 @@ export default defineConfig({
     url:
       process.env.DATABASE_URL_UNPOOLED ||
       process.env.DATABASE_URL ||
+      process.env.DATABASE_URL_POOLED ||
       "postgresql://mock_user:mock_password@localhost:5432/mock_office_store",
   },
   verbose: true,

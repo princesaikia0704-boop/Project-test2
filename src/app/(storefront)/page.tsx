@@ -17,6 +17,21 @@ export default function CatalogPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<string>("price-asc");
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeed = async () => {
+    setIsSeeding(true);
+    try {
+      const res = await fetch("/api/admin/seed");
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch {
+      // Ignored
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // 300ms Debounce Implementation (Feature F15)
   useEffect(() => {
@@ -136,18 +151,28 @@ export default function CatalogPage() {
           <PackageX className="w-16 h-16 mx-auto mb-3 text-slate-300" />
           <h3 className="text-base font-semibold text-slate-700 mb-1">No products found</h3>
           <p className="text-xs text-slate-400 mb-4">
-            Try adjusting your search query or removing category filters.
+            The database is currently empty. Click below to load the initial office product catalog.
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchQuery("");
-              setSelectedCategory("all");
-            }}
-            className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
-          >
-            Reset Filters
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedCategory("all");
+              }}
+              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+            >
+              Reset Filters
+            </button>
+            <button
+              type="button"
+              onClick={handleSeed}
+              disabled={isSeeding}
+              className="px-4 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition disabled:opacity-50"
+            >
+              {isSeeding ? "Seeding Database..." : "Seed Sample Products"}
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

@@ -268,6 +268,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   // 2. Identify Public Routes
   const isPublicRoute =
     pathname === "/api/health" ||
+    pathname === "/api/admin/seed" ||
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/(auth)/") ||
@@ -304,8 +305,8 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
 
     if (isAdminRoute) {
-      // EMPLOYEE is completely forbidden from admin routes
-      if (persona.role === "EMPLOYEE") {
+      // EMPLOYEE is completely forbidden from admin routes (except public database seed)
+      if (persona.role === "EMPLOYEE" && pathname !== "/api/admin/seed") {
         if (pathname.startsWith("/api/")) {
           return createJsonErrorResponse(
             "Forbidden",

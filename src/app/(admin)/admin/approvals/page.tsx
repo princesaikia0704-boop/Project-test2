@@ -96,23 +96,20 @@ export default function ApprovalsPage() {
     }
   }, []);
 
-  // Initial and tab-based fetch
+  // Initial fetch for BOTH pending and history so both tab counters show correct counts
   useEffect(() => {
-    if (activeTab === "pending") {
-      fetchPendingOrders();
-    } else {
-      fetchDepartmentHistory();
-    }
-  }, [activeTab, fetchPendingOrders, fetchDepartmentHistory]);
+    fetchPendingOrders();
+    fetchDepartmentHistory();
+  }, [fetchPendingOrders, fetchDepartmentHistory]);
 
-  // Auto-refresh every 15 seconds
+  // Auto-refresh both every 15 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      if (activeTab === "pending") fetchPendingOrders(true);
-      else fetchDepartmentHistory(true);
+      fetchPendingOrders(true);
+      fetchDepartmentHistory(true);
     }, 15_000);
     return () => clearInterval(interval);
-  }, [activeTab, fetchPendingOrders, fetchDepartmentHistory]);
+  }, [fetchPendingOrders, fetchDepartmentHistory]);
 
   // Decision handler: sends { decision: "APPROVE" } or { decision: "REJECT", comment: "..." }
   const handleDecision = async (

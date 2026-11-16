@@ -320,28 +320,34 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         return redirectResponse;
       }
 
-      // MANAGER restrictions: Manager can access approvals queue, KPIs, and billing, but NOT store settings, audit logs, or product mutations
+      // MANAGER permissions: Manager can access approvals, KPIs, billing, settings view, and audit logs
       if (persona.role === "MANAGER") {
         const isManagerAllowed =
-          pathname === "/api/admin/approvals" ||
-          pathname.startsWith("/api/admin/approvals/") ||
+          pathname === "/admin" ||
           pathname === "/admin/approvals" ||
           pathname.startsWith("/admin/approvals/") ||
+          pathname === "/api/admin/approvals" ||
+          pathname.startsWith("/api/admin/approvals/") ||
           pathname === "/api/admin/orders" ||
           pathname.startsWith("/api/admin/orders/") ||
           pathname === "/api/admin/kpis" ||
           pathname.startsWith("/api/admin/kpis/") ||
           pathname === "/api/admin/billing/export" ||
-          pathname.startsWith("/api/admin/billing");
+          pathname.startsWith("/api/admin/billing") ||
+          pathname === "/admin/settings" ||
+          pathname.startsWith("/admin/settings") ||
+          pathname === "/api/admin/store-config" ||
+          pathname.startsWith("/api/admin/store-config") ||
+          pathname === "/admin/audit-logs" ||
+          pathname.startsWith("/admin/audit-logs") ||
+          pathname === "/api/admin/audit-logs" ||
+          pathname.startsWith("/api/admin/audit-logs") ||
+          pathname === "/admin/catalog" ||
+          pathname.startsWith("/admin/catalog");
 
         const isRestrictedAdminAction =
-          pathname.startsWith("/api/admin/store-config") ||
-          pathname.startsWith("/api/admin/audit-logs") ||
           pathname.startsWith("/api/admin/products") ||
-          pathname.startsWith("/api/admin/categories") ||
-          pathname.startsWith("/admin/settings") ||
-          pathname.startsWith("/admin/audit-logs") ||
-          pathname.startsWith("/admin/products");
+          pathname.startsWith("/api/admin/categories");
 
         if (isRestrictedAdminAction && !isManagerAllowed) {
           if (pathname.startsWith("/api/")) {

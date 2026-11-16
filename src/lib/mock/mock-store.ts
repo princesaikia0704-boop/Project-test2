@@ -82,6 +82,55 @@ export class MockDataStore {
 
     this.users.clear();
     for (const u of SEED_USERS) this.users.set(u.id, { ...u });
+    // Also register mock persona users
+    this.users.set("user-bob-emp", {
+      id: "user-bob-emp",
+      clerkId: "mock_bob",
+      email: "bob@company.com",
+      name: "Bob Staff Engineer",
+      role: "EMPLOYEE",
+      departmentId: "10000000-0000-0000-0000-000000000001",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    this.users.set("user-carol-mgr", {
+      id: "user-carol-mgr",
+      clerkId: "mock_carol",
+      email: "carol@company.com",
+      name: "Carol Manager",
+      role: "MANAGER",
+      departmentId: "10000000-0000-0000-0000-000000000001",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    this.users.set("user-dave-adm", {
+      id: "user-dave-adm",
+      clerkId: "mock_dave",
+      email: "dave@company.com",
+      name: "Dave Administrator",
+      role: "ADMIN",
+      departmentId: "10000000-0000-0000-0000-000000000002",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    // Ensure Operations department exists
+    if (!this.departments.has("10000000-0000-0000-0000-000000000005")) {
+      this.departments.set("10000000-0000-0000-0000-000000000005", {
+        id: "10000000-0000-0000-0000-000000000005",
+        name: "Operations",
+        code: "OPS",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      this.departments.set("dept-ops", {
+        id: "dept-ops",
+        name: "Operations",
+        code: "OPS",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
 
     this.categories.clear();
     for (const c of SEED_CATEGORIES) this.categories.set(c.id, { ...c });
@@ -94,30 +143,104 @@ export class MockDataStore {
     this.storeSettings = { ...SEED_STORE_SETTINGS };
     this.auditLogs = [];
 
-    // Seed one initial sample order for instant dashboard population
-    const sampleOrderId = "60000000-0000-0000-0000-000000000001";
-    this.orders.set(sampleOrderId, {
-      id: sampleOrderId,
+    // Seed realistic sample orders for instant dashboard and approvals population
+    const sampleOrderId1 = "60000000-0000-0000-0000-000000000001";
+    this.orders.set(sampleOrderId1, {
+      id: sampleOrderId1,
       orderNumber: "ORD-SAMPLE-0001",
       userId: "30000000-0000-0000-0000-000000000001", // Alex Chen
       departmentId: "10000000-0000-0000-0000-000000000001", // Engineering
       totalCents: 6999, // $69.99
       status: "APPROVED",
-      approvedByUserId: "30000000-0000-0000-0000-000000000002", // Sarah Jenkins
+      approvedByUserId: "user-carol-mgr", // Carol Manager
       rejectionReason: null,
-      notes: "Sample initial order",
+      notes: "Sample initial order - Precision Mouse",
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
     });
-
     this.orderItems.set("70000000-0000-0000-0000-000000000001", {
       id: "70000000-0000-0000-0000-000000000001",
-      orderId: sampleOrderId,
+      orderId: sampleOrderId1,
       productId: "50000000-0000-0000-0000-000000000006", // Precision Mouse
       quantity: 1,
       unitPriceCents: 6999,
       totalPriceCents: 6999,
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    });
+
+    // Pending Requisition 1: Ergonomic Mesh Chair
+    const pendingOrderId1 = "60000000-0000-0000-0000-000000000002";
+    this.orders.set(pendingOrderId1, {
+      id: pendingOrderId1,
+      orderNumber: "ORD-REQ-2026-002",
+      userId: "user-bob-emp", // Bob Staff Engineer
+      departmentId: "10000000-0000-0000-0000-000000000001", // Engineering
+      totalCents: 34999, // $349.99
+      status: "PENDING_APPROVAL",
+      approvedByUserId: null,
+      rejectionReason: null,
+      notes: "Ergonomic Mesh Task Chair for remote workstation",
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+      updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    });
+    this.orderItems.set("70000000-0000-0000-0000-000000000002", {
+      id: "70000000-0000-0000-0000-000000000002",
+      orderId: pendingOrderId1,
+      productId: "50000000-0000-0000-0000-000000000001", // Ergonomic Mesh Task Chair
+      quantity: 1,
+      unitPriceCents: 34999,
+      totalPriceCents: 34999,
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+    });
+
+    // Pending Requisition 2: Standing Desk Converter
+    const pendingOrderId2 = "60000000-0000-0000-0000-000000000003";
+    this.orders.set(pendingOrderId2, {
+      id: pendingOrderId2,
+      orderNumber: "ORD-REQ-2026-003",
+      userId: "30000000-0000-0000-0000-000000000001", // Alex Chen
+      departmentId: "10000000-0000-0000-0000-000000000001", // Engineering
+      totalCents: 18950, // $189.50
+      status: "PENDING_APPROVAL",
+      approvedByUserId: null,
+      rejectionReason: null,
+      notes: "Height-Adjustable Standing Desk Converter for sprint station",
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+      updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+    this.orderItems.set("70000000-0000-0000-0000-000000000003", {
+      id: "70000000-0000-0000-0000-000000000003",
+      orderId: pendingOrderId2,
+      productId: "50000000-0000-0000-0000-000000000003", // Standing Desk Converter
+      quantity: 1,
+      unitPriceCents: 18950,
+      totalPriceCents: 18950,
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+    });
+
+    // History Requisition 3 (Rejected): Active Sitting Stool
+    const rejectedOrderId = "60000000-0000-0000-0000-000000000004";
+    this.orders.set(rejectedOrderId, {
+      id: rejectedOrderId,
+      orderNumber: "ORD-REQ-2026-004",
+      userId: "user-bob-emp", // Bob Staff Engineer
+      departmentId: "10000000-0000-0000-0000-000000000001", // Engineering
+      totalCents: 11900, // $119.00
+      status: "REJECTED",
+      approvedByUserId: "user-carol-mgr",
+      rejectionReason: "Quarterly ergonomic allowance exceeded. Please re-submit next fiscal cycle.",
+      notes: "Active Sitting Balance Stool",
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    });
+    this.orderItems.set("70000000-0000-0000-0000-000000000004", {
+      id: "70000000-0000-0000-0000-000000000004",
+      orderId: rejectedOrderId,
+      productId: "50000000-0000-0000-0000-000000000004", // Active Sitting Stool
+      quantity: 1,
+      unitPriceCents: 11900,
+      totalPriceCents: 11900,
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     });
   }
 

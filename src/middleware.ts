@@ -180,6 +180,37 @@ export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
     return KNOWN_PERSONAS[cookiePersonaId];
   }
 
+  // E. Fallback: Parse mock_token cookie
+  const cookieToken = req.cookies.get("mock_token")?.value;
+  if (cookieToken && cookieToken.startsWith("mock_jwt_")) {
+    const parts = cookieToken.replace("mock_jwt_", "").split("_");
+    if (parts.length >= 2) {
+      const rawRole = parts[0].toUpperCase() as UserRole;
+      const rawUserId = parts.slice(1).join("_");
+      return {
+        id: rawUserId,
+        role: rawRole,
+        departmentId: KNOWN_PERSONAS[rawUserId]?.departmentId || "dept-ops",
+        name: KNOWN_PERSONAS[rawUserId]?.name || rawUserId,
+        email: KNOWN_PERSONAS[rawUserId]?.email || `${rawUserId}@company.local`,
+      };
+    }
+  }
+
+  // F. Fallback: Parse mock_user_role cookie
+  const cookieRole = req.cookies.get("mock_user_role")?.value?.toUpperCase() as UserRole | undefined;
+  if (cookieRole && (cookieRole === "EMPLOYEE" || cookieRole === "MANAGER" || cookieRole === "ADMIN")) {
+    const defaultId = cookieRole === "ADMIN" ? "user-dave-adm" : cookieRole === "MANAGER" ? "user-carol-mgr" : "user-alice-emp";
+    const uid = cookiePersonaId || defaultId;
+    return {
+      id: uid,
+      role: cookieRole,
+      departmentId: KNOWN_PERSONAS[uid]?.departmentId || "dept-ops",
+      name: KNOWN_PERSONAS[uid]?.name || uid,
+      email: KNOWN_PERSONAS[uid]?.email || `${uid}@company.local`,
+    };
+  }
+
   return null;
 }
 
@@ -289,7 +320,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         return redirectResponse;
       }
 
-      // MANAGER restrictions: Manager can access approvals queue, but NOT store settings, audit logs, or product mutations
+      // MANAGER restrictions: Manager can access approvals queue, KPIs, and billing, but NOT store settings, audit logs, or product mutations
       if (persona.role === "MANAGER") {
         const isManagerAllowed =
           pathname === "/api/admin/approvals" ||
@@ -297,14 +328,17 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
           pathname === "/admin/approvals" ||
           pathname.startsWith("/admin/approvals/") ||
           pathname === "/api/admin/orders" ||
-          pathname.startsWith("/api/admin/orders/");
+          pathname.startsWith("/api/admin/orders/") ||
+          pathname === "/api/admin/kpis" ||
+          pathname.startsWith("/api/admin/kpis/") ||
+          pathname === "/api/admin/billing/export" ||
+          pathname.startsWith("/api/admin/billing");
 
         const isRestrictedAdminAction =
           pathname.startsWith("/api/admin/store-config") ||
           pathname.startsWith("/api/admin/audit-logs") ||
           pathname.startsWith("/api/admin/products") ||
           pathname.startsWith("/api/admin/categories") ||
-          pathname.startsWith("/api/admin/kpis") ||
           pathname.startsWith("/admin/settings") ||
           pathname.startsWith("/admin/audit-logs") ||
           pathname.startsWith("/admin/products");

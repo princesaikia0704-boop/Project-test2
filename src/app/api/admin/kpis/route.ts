@@ -75,5 +75,5 @@ export const GET = withApiReliability(
       { status: 200 }
     );
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );

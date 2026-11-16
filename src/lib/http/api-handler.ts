@@ -81,6 +81,29 @@ export function withApiReliability(
       }
     }
 
+    // Extract from mock cookies if not in headers or auth bearer
+    if (!userRole) {
+      const cookieRole = req.cookies.get("mock_user_role")?.value?.toUpperCase() as UserRole | undefined;
+      const cookiePersona = req.cookies.get("mock_persona")?.value;
+      const cookieToken = req.cookies.get("mock_token")?.value;
+
+      if (cookieRole) {
+        userRole = cookieRole;
+        userId = cookiePersona || userId || "user-admin";
+      } else if (cookieToken && cookieToken.startsWith("mock_jwt_")) {
+        const parts = cookieToken.replace("mock_jwt_", "").split("_");
+        if (parts.length >= 2) {
+          userRole = parts[0].toUpperCase() as UserRole;
+          userId = parts.slice(1).join("_");
+        }
+      } else if (cookiePersona) {
+        if (cookiePersona.includes("adm")) userRole = "ADMIN";
+        else if (cookiePersona.includes("mgr")) userRole = "MANAGER";
+        else if (cookiePersona.includes("emp")) userRole = "EMPLOYEE";
+        userId = cookiePersona;
+      }
+    }
+
     if (allowedRoles && allowedRoles.length > 0) {
       if (!userRole || !userId) {
         return createErrorResponse(

@@ -55,7 +55,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
       return match ? match[2] : null;
     };
-    const cookieRole = getCookieValue("x-user-role");
+    let cookieRole =
+      getCookieValue("mock_user_role") ||
+      getCookieValue("x-user-role");
+    if (!cookieRole) {
+      const mockToken = getCookieValue("mock_token");
+      if (mockToken && mockToken.startsWith("mock_jwt_")) {
+        cookieRole = mockToken.split("_")[2]?.toUpperCase();
+      }
+    }
     if (cookieRole) {
       setUserRole(cookieRole);
     }

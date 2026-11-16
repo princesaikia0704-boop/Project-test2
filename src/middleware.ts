@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
 
 export type UserRole = "EMPLOYEE" | "MANAGER" | "ADMIN";
 
@@ -22,30 +23,30 @@ export interface ResolvedPersona {
 // Canonical Persona Catalog for Test Token & Mock Resolution
 const KNOWN_PERSONAS: Record<string, ResolvedPersona> = {
   "user-alice-emp": {
-    id: "user-alice-emp",
+    id: "30000000-0000-0000-0000-000000000001",
     role: "EMPLOYEE",
-    departmentId: "dept-eng",
+    departmentId: "10000000-0000-0000-0000-000000000001",
     name: "Alice Engineer",
     email: "alice@company.com",
   },
   "user-bob-emp": {
-    id: "user-bob-emp",
+    id: "30000000-0000-0000-0000-000000000004",
     role: "EMPLOYEE",
-    departmentId: "dept-eng",
+    departmentId: "10000000-0000-0000-0000-000000000001",
     name: "Bob Staff Engineer",
     email: "bob@company.com",
   },
   "user-carol-mgr": {
-    id: "user-carol-mgr",
+    id: "30000000-0000-0000-0000-000000000002",
     role: "MANAGER",
-    departmentId: "dept-eng",
+    departmentId: "10000000-0000-0000-0000-000000000001",
     name: "Carol Manager",
     email: "carol@company.com",
   },
   "user-dave-adm": {
-    id: "user-dave-adm",
+    id: "30000000-0000-0000-0000-000000000003",
     role: "ADMIN",
-    departmentId: "dept-ops",
+    departmentId: "10000000-0000-0000-0000-000000000005",
     name: "Dave Administrator",
     email: "dave@company.com",
   },
@@ -137,10 +138,11 @@ export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
   if (headerRole && headerUserId) {
     const roleUpper = headerRole.toUpperCase() as UserRole;
     if (roleUpper === "EMPLOYEE" || roleUpper === "MANAGER" || roleUpper === "ADMIN") {
+      const dept = headerDeptId || KNOWN_PERSONAS[headerUserId]?.departmentId;
       return {
-        id: headerUserId,
+        id: normalizeUserUuid(headerUserId),
         role: roleUpper,
-        departmentId: headerDeptId || KNOWN_PERSONAS[headerUserId]?.departmentId || "dept-eng",
+        departmentId: normalizeDepartmentUuid(dept),
         name: KNOWN_PERSONAS[headerUserId]?.name || headerUserId,
         email: KNOWN_PERSONAS[headerUserId]?.email || `${headerUserId}@company.local`,
       };
@@ -158,10 +160,11 @@ export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
       const matched = KNOWN_PERSONAS[rawUserId];
 
       if (rawRole === "EMPLOYEE" || rawRole === "MANAGER" || rawRole === "ADMIN") {
+        const dept = headerDeptId || matched?.departmentId;
         return {
-          id: rawUserId,
+          id: normalizeUserUuid(matched?.id || rawUserId),
           role: rawRole,
-          departmentId: headerDeptId || matched?.departmentId || "dept-eng",
+          departmentId: normalizeDepartmentUuid(dept),
           name: matched?.name || rawUserId,
           email: matched?.email || `${rawUserId}@company.local`,
         };
@@ -187,12 +190,13 @@ export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
     if (parts.length >= 2) {
       const rawRole = parts[0].toUpperCase() as UserRole;
       const rawUserId = parts.slice(1).join("_");
+      const matched = KNOWN_PERSONAS[rawUserId];
       return {
-        id: rawUserId,
+        id: normalizeUserUuid(matched?.id || rawUserId),
         role: rawRole,
-        departmentId: KNOWN_PERSONAS[rawUserId]?.departmentId || "dept-ops",
-        name: KNOWN_PERSONAS[rawUserId]?.name || rawUserId,
-        email: KNOWN_PERSONAS[rawUserId]?.email || `${rawUserId}@company.local`,
+        departmentId: normalizeDepartmentUuid(matched?.departmentId),
+        name: matched?.name || rawUserId,
+        email: matched?.email || `${rawUserId}@company.local`,
       };
     }
   }
@@ -202,12 +206,13 @@ export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
   if (cookieRole && (cookieRole === "EMPLOYEE" || cookieRole === "MANAGER" || cookieRole === "ADMIN")) {
     const defaultId = cookieRole === "ADMIN" ? "user-dave-adm" : cookieRole === "MANAGER" ? "user-carol-mgr" : "user-alice-emp";
     const uid = cookiePersonaId || defaultId;
+    const matched = KNOWN_PERSONAS[uid];
     return {
-      id: uid,
+      id: normalizeUserUuid(matched?.id || uid),
       role: cookieRole,
-      departmentId: KNOWN_PERSONAS[uid]?.departmentId || "dept-ops",
-      name: KNOWN_PERSONAS[uid]?.name || uid,
-      email: KNOWN_PERSONAS[uid]?.email || `${uid}@company.local`,
+      departmentId: normalizeDepartmentUuid(matched?.departmentId),
+      name: matched?.name || uid,
+      email: matched?.email || `${uid}@company.local`,
     };
   }
 

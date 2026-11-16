@@ -15,6 +15,7 @@ import {
   Product,
 } from "@/lib/db/schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
+import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
 
 export interface OrderWithRelations extends Order {
   items: (OrderItem & { product?: Product })[];
@@ -144,10 +145,11 @@ export class OrderRepository implements IOrderRepository {
       return orders as unknown as Order[];
     }
 
+    const validUserId = normalizeUserUuid(userId);
     const rows = await db
       .select()
       .from(schema.orders)
-      .where(eq(schema.orders.userId, userId))
+      .where(eq(schema.orders.userId, validUserId))
       .orderBy(desc(schema.orders.createdAt))
       .limit(options?.limit ?? 50)
       .offset(options?.offset ?? 0);
@@ -181,9 +183,8 @@ export class OrderRepository implements IOrderRepository {
 
     const conditions: any[] = [eq(schema.orders.status, "PENDING_APPROVAL")];
     if (departmentId) {
-      conditions.push(
-        sql`(${schema.orders.departmentId} = ${departmentId} OR (${departmentId} = 'dept-eng' AND ${schema.orders.departmentId} = '10000000-0000-0000-0000-000000000001'))`
-      );
+      const validDeptId = normalizeDepartmentUuid(departmentId);
+      conditions.push(eq(schema.orders.departmentId, validDeptId));
     }
 
     const rows = await db
@@ -223,9 +224,8 @@ export class OrderRepository implements IOrderRepository {
 
     const conditions: any[] = [];
     if (departmentId) {
-      conditions.push(
-        sql`(${schema.orders.departmentId} = ${departmentId} OR (${departmentId} = 'dept-eng' AND ${schema.orders.departmentId} = '10000000-0000-0000-0000-000000000001'))`
-      );
+      const validDeptId = normalizeDepartmentUuid(departmentId);
+      conditions.push(eq(schema.orders.departmentId, validDeptId));
     }
     if (options?.status) {
       conditions.push(eq(schema.orders.status, options.status));
@@ -270,7 +270,7 @@ export class OrderRepository implements IOrderRepository {
     };
 
     if (approvedByUserId !== undefined) {
-      updatePayload.approvedByUserId = approvedByUserId;
+      updatePayload.approvedByUserId = approvedByUserId ? normalizeUserUuid(approvedByUserId) : null;
     }
     if (rejectionReason !== undefined) {
       updatePayload.rejectionReason = rejectionReason;

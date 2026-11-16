@@ -7,6 +7,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { DepartmentBudget, NewDepartmentBudget } from "@/lib/db/schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
+import { normalizeDepartmentUuid } from "@/lib/utils";
 
 export interface IBudgetRepository {
   getDepartmentBudget(
@@ -47,7 +48,8 @@ export class BudgetRepository implements IBudgetRepository {
 
     const client = tx || db;
     const now = new Date();
-    const conditions = [eq(schema.departmentBudgets.departmentId, departmentId)];
+    const validDeptId = normalizeDepartmentUuid(departmentId);
+    const conditions = [eq(schema.departmentBudgets.departmentId, validDeptId)];
 
     if (activeOnly) {
       conditions.push(sql`${schema.departmentBudgets.periodStart} <= ${now}`);

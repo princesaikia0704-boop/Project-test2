@@ -101,3 +101,48 @@ export function calculateBudgetZone(
     projectedRemainingCents,
   };
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(val?: string | null): boolean {
+  if (!val) return false;
+  return UUID_REGEX.test(val);
+}
+
+export const DEPARTMENT_SLUG_TO_UUID: Record<string, string> = {
+  "dept-eng": "10000000-0000-0000-0000-000000000001",
+  "dept-sales": "10000000-0000-0000-0000-000000000002",
+  "dept-mkt": "10000000-0000-0000-0000-000000000003",
+  "dept-hr": "10000000-0000-0000-0000-000000000004",
+  "dept-ops": "10000000-0000-0000-0000-000000000005",
+  "engineering": "10000000-0000-0000-0000-000000000001",
+  "sales": "10000000-0000-0000-0000-000000000002",
+  "marketing": "10000000-0000-0000-0000-000000000003",
+  "hr": "10000000-0000-0000-0000-000000000004",
+  "operations": "10000000-0000-0000-0000-000000000005",
+};
+
+export function normalizeDepartmentUuid(deptId?: string | null): string {
+  if (!deptId) return "10000000-0000-0000-0000-000000000001";
+  if (isUuid(deptId)) return deptId;
+  const lower = deptId.toLowerCase().trim();
+  return DEPARTMENT_SLUG_TO_UUID[lower] || "10000000-0000-0000-0000-000000000001";
+}
+
+export const USER_SLUG_TO_UUID: Record<string, string> = {
+  "user-alice-emp": "30000000-0000-0000-0000-000000000001",
+  "user-bob-emp": "30000000-0000-0000-0000-000000000004",
+  "user-carol-mgr": "30000000-0000-0000-0000-000000000002",
+  "user-dave-adm": "30000000-0000-0000-0000-000000000003",
+  "alice@company.com": "30000000-0000-0000-0000-000000000001",
+  "bob@company.com": "30000000-0000-0000-0000-000000000004",
+  "carol@company.com": "30000000-0000-0000-0000-000000000002",
+  "dave@company.com": "30000000-0000-0000-0000-000000000003",
+};
+
+export function normalizeUserUuid(userId?: string | null): string {
+  if (!userId) return "30000000-0000-0000-0000-000000000001";
+  if (isUuid(userId)) return userId;
+  const lower = userId.toLowerCase().trim();
+  return USER_SLUG_TO_UUID[lower] || "30000000-0000-0000-0000-000000000001";
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
 import { createOrderWithACID, DomainError } from "@/services/order.service";
 import { orderRepo } from "@/repositories/order.repo";
+import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
 
 export const POST = withApiReliability(
   async (req: NextRequest) => {
@@ -60,15 +61,18 @@ export const POST = withApiReliability(
       }
     }
 
-    const userId =
+    const rawUserId =
       req.headers.get("x-user-id") ||
       req.cookies.get("mock_persona")?.value ||
       "user-alice-emp";
 
-    const departmentId =
+    const rawDepartmentId =
       req.headers.get("x-user-department-id") ||
       req.headers.get("x-department-id") ||
       "dept-eng";
+
+    const userId = normalizeUserUuid(rawUserId);
+    const departmentId = normalizeDepartmentUuid(rawDepartmentId);
 
     try {
       const result = await createOrderWithACID({
@@ -102,11 +106,12 @@ export const POST = withApiReliability(
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
-    const userId =
+    const rawUserId =
       req.headers.get("x-user-id") ||
       req.cookies.get("mock_persona")?.value ||
       "user-alice-emp";
 
+    const userId = normalizeUserUuid(rawUserId);
     const orders = await orderRepo.listByUserId(userId);
 
     return NextResponse.json(

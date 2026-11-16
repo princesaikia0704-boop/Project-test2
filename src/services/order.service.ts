@@ -12,6 +12,7 @@ import { orderRepo } from "@/repositories/order.repo";
 import { budgetRepo } from "@/repositories/budget.repo";
 import { configRepo } from "@/repositories/config.repo";
 import { auditRepo } from "@/repositories/audit.repo";
+import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
 
 export class DomainError extends Error {
   constructor(
@@ -147,6 +148,10 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
 
   // Live PostgreSQL Mode with pooled WebSocket transaction
   return await txDb.transaction(async (tx) => {
+    // Normalize string slugs (e.g. "dept-eng", "user-alice-emp") to valid PostgreSQL UUIDs
+    const deptUuid = normalizeDepartmentUuid(input.departmentId);
+    const userUuid = normalizeUserUuid(input.userId);
+
     // Session timeouts for SLA boundaries
     await tx.execute(sql`SET LOCAL lock_timeout = '2s';`);
     await tx.execute(sql`SET LOCAL statement_timeout = '5s';`);
@@ -157,7 +162,7 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
       .select()
       .from(schema.departmentBudgets)
       .where(
-        sql`(${schema.departmentBudgets.departmentId} = ${input.departmentId} OR ${schema.departmentBudgets.departmentId} = '10000000-0000-0000-0000-000000000001') AND ${schema.departmentBudgets.periodStart} <= ${now} AND ${schema.departmentBudgets.periodEnd} >= ${now}`
+        sql`(${schema.departmentBudgets.departmentId} = ${deptUuid} OR ${schema.departmentBudgets.departmentId} = '10000000-0000-0000-0000-000000000001') AND ${schema.departmentBudgets.periodStart} <= ${now} AND ${schema.departmentBudgets.periodEnd} >= ${now}`
       )
       .for("update")
       .limit(1);
@@ -220,8 +225,8 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
     // 6. Insert Order Record and Items in database
     const { order, items } = await orderRepo.createOrderRecord(
       {
-        userId: input.userId,
-        departmentId: input.departmentId,
+        userId: userUuid,
+        departmentId: deptUuid,
         totalCents: calculatedTotalCents,
         status,
         notes: input.notes || null,

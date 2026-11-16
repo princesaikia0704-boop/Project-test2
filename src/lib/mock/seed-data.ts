@@ -177,7 +177,17 @@ export const SEED_USERS: UserSeed[] = [
     email: "david.vance@company.com",
     name: "David Vance",
     role: "ADMIN",
-    departmentId: "10000000-0000-0000-0000-000000000004", // HR
+    departmentId: "10000000-0000-0000-0000-000000000005", // Operations
+    createdAt: THIRTY_DAYS_AGO,
+    updatedAt: THIRTY_DAYS_AGO,
+  },
+  {
+    id: "30000000-0000-0000-0000-000000000004",
+    clerkId: "user_mock_employee_002",
+    email: "bob.engineer@company.com",
+    name: "Bob Staff Engineer",
+    role: "EMPLOYEE",
+    departmentId: "10000000-0000-0000-0000-000000000001", // Engineering
     createdAt: THIRTY_DAYS_AGO,
     updatedAt: THIRTY_DAYS_AGO,
   },

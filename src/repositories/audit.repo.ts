@@ -7,6 +7,7 @@ import { desc, eq, and } from "drizzle-orm";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { AuditLog, NewAuditLog } from "@/lib/db/schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
+import { normalizeUserUuid } from "@/lib/utils";
 
 export interface ListAuditLogsFilter {
   entityType?: string;
@@ -28,7 +29,11 @@ export class AuditRepository implements IAuditRepository {
     }
 
     const client = tx || db;
-    const [created] = await client.insert(schema.auditLogs).values(entry).returning();
+    const normalizedEntry = {
+      ...entry,
+      adminUserId: entry.adminUserId ? normalizeUserUuid(entry.adminUserId) : null,
+    };
+    const [created] = await client.insert(schema.auditLogs).values(normalizedEntry).returning();
     return created;
   }
 
@@ -45,7 +50,7 @@ export class AuditRepository implements IAuditRepository {
       conditions.push(eq(schema.auditLogs.entityId, filter.entityId));
     }
     if (filter?.adminUserId) {
-      conditions.push(eq(schema.auditLogs.adminUserId, filter.adminUserId));
+      conditions.push(eq(schema.auditLogs.adminUserId, normalizeUserUuid(filter.adminUserId)));
     }
 
     const query = db

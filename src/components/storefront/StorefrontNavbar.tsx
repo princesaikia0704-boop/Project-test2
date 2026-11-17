@@ -5,14 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
-import { ShoppingBag, Briefcase, User } from "lucide-react";
+import { ShoppingBag, Briefcase, User, LayoutDashboard } from "lucide-react";
 
-type PersonaInfo = { name: string; badge: string; badgeColor: string };
+type PersonaInfo = { name: string; badge: string; badgeColor: string; adminPath?: string };
 
 const PERSONA_MAP: Record<string, PersonaInfo> = {
   "user-alice-emp": { name: "Alice Engineer", badge: "EMP", badgeColor: "bg-slate-200 text-slate-600" },
-  "user-carol-mgr": { name: "Carol Manager",  badge: "MGR", badgeColor: "bg-amber-200 text-amber-700" },
-  "user-dave-adm":  { name: "Dave Admin",     badge: "ADM", badgeColor: "bg-purple-200 text-purple-700" },
+  "user-carol-mgr": { name: "Carol Manager",  badge: "MGR", badgeColor: "bg-amber-200 text-amber-700",  adminPath: "/admin/approvals" },
+  "user-dave-adm":  { name: "Dave Admin",     badge: "ADM", badgeColor: "bg-purple-200 text-purple-700", adminPath: "/admin" },
 };
 
 const DEFAULT_PERSONA: PersonaInfo = PERSONA_MAP["user-alice-emp"];
@@ -87,6 +87,18 @@ export const StorefrontNavbar: React.FC = () => {
               <span>Engineering: $1,000.00 left</span>
             </div>
             */}
+
+            {/* Admin Panel shortcut — only shown for MGR / ADM */}
+            {persona.adminPath && (
+              <a
+                href={persona.adminPath}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition"
+                title="Go to Admin Panel"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Admin Panel →</span>
+              </a>
+            )}
 
             {/* Persona Indicator & Switcher */}
             <Link

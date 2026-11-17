@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  Store,
 } from "lucide-react";
 
 interface NavItem {
@@ -176,7 +177,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* User Role Badge & Collapse Toggle */}
+        {/* User Role Badge, Storefront Link & Collapse Toggle */}
         <div className="border-t border-slate-700 px-3 py-3 space-y-2 shrink-0">
           {!collapsed && (
             <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-white/5">
@@ -197,6 +198,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
             </div>
           )}
+
+          {/* Go to Storefront */}
+          <a
+            href="/"
+            title="Switch to User / Storefront"
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <Store className="w-4 h-4 shrink-0" />
+            {!collapsed && <span>← Storefront</span>}
+          </a>
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}

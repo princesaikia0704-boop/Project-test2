@@ -1,15 +1,38 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
-import { ShoppingBag, Briefcase, User, Clock, Layers } from "lucide-react";
+import { ShoppingBag, Briefcase, User } from "lucide-react";
+
+type PersonaInfo = { name: string; badge: string; badgeColor: string };
+
+const PERSONA_MAP: Record<string, PersonaInfo> = {
+  "user-alice-emp": { name: "Alice Engineer", badge: "EMP", badgeColor: "bg-slate-200 text-slate-600" },
+  "user-carol-mgr": { name: "Carol Manager",  badge: "MGR", badgeColor: "bg-amber-200 text-amber-700" },
+  "user-dave-adm":  { name: "Dave Admin",     badge: "ADM", badgeColor: "bg-purple-200 text-purple-700" },
+};
+
+const DEFAULT_PERSONA: PersonaInfo = PERSONA_MAP["user-alice-emp"];
+
+function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 export const StorefrontNavbar: React.FC = () => {
   const pathname = usePathname();
   const { totalItemCount, isDrawerOpen, openDrawer, closeDrawer } = useCart();
+  const [persona, setPersona] = useState<PersonaInfo>(DEFAULT_PERSONA);
+
+  // Re-read cookie whenever pathname changes (i.e. after login redirect)
+  useEffect(() => {
+    const id = getCookieValue("mock_persona");
+    setPersona(id && PERSONA_MAP[id] ? PERSONA_MAP[id] : DEFAULT_PERSONA);
+  }, [pathname]);
 
   const navLinks = [
     { href: "/", label: "Catalog" },
@@ -72,9 +95,9 @@ export const StorefrontNavbar: React.FC = () => {
               title="Switch Persona / Login"
             >
               <User className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Alice Engineer</span>
-              <span className="text-[10px] font-bold uppercase bg-slate-200 px-1.5 py-0.2 rounded text-slate-600">
-                EMP
+              <span className="hidden sm:inline">{persona.name}</span>
+              <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${persona.badgeColor}`}>
+                {persona.badge}
               </span>
             </Link>
 

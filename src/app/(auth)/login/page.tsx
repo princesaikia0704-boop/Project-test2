@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Briefcase, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [, setActivePersona] = useState<string | null>(null);
 
   const personas = [
@@ -48,7 +46,8 @@ export default function LoginPage() {
     document.cookie = `mock_token=mock_jwt_${persona.role.toLowerCase()}_${persona.id}; path=/; max-age=86400`;
 
     localStorage.setItem("active_persona", JSON.stringify(persona));
-    router.push(persona.targetPath);
+    // Full reload so middleware re-reads cookies and resolves new persona
+    window.location.href = persona.targetPath;
   };
 
   return (

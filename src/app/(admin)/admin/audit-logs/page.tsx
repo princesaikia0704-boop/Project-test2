@@ -378,13 +378,13 @@ export default function AuditLogsPage() {
           </div>
 
           {/* Log Rows */}
-          {logs.map((log) => {
+          {logs.map((log, index) => {
             const isExpanded = expandedLogId === log.id;
             const actionColor =
               ACTION_COLORS[log.action] || "bg-slate-50 text-slate-700 border-slate-200";
 
             return (
-              <div key={log.id} data-testid={`audit-row-${log.id}`}>
+              <div key={`${log.id}-${index}`} data-testid={`audit-row-${log.id}`}>
                 <div
                   className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
                   onClick={() => toggleExpand(log.id)}

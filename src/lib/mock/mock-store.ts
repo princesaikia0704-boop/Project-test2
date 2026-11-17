@@ -605,7 +605,7 @@ export class MockDataStore {
   // ---------------------------------------------------------------------------
 
   public addAuditLog(entry: Omit<AuditLogRecord, "id" | "createdAt">): AuditLogRecord {
-    const id = `80000000-${Date.now().toString(16).padStart(12, "0")}`;
+    const id = crypto.randomUUID ? crypto.randomUUID() : `80000000-${Date.now().toString(16)}-${Math.random().toString(36).substring(2, 9)}`;
     const rec: AuditLogRecord = {
       id,
       ...entry,

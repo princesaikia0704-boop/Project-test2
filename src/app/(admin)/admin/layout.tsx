@@ -12,9 +12,8 @@ import {
   Briefcase,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  Store,
 } from "lucide-react";
+import { PersonaSwitcher } from "@/components/shared/PersonaSwitcher";
 
 interface NavItem {
   href: string;
@@ -27,7 +26,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-  const [userRole, setUserRole] = useState<string>("ADMIN");
 
   // Fetch pending approvals count for badge
   useEffect(() => {
@@ -47,42 +45,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const interval = setInterval(fetchPending, 30_000);
     return () => clearInterval(interval);
   }, []);
-
-  // Detect user role from a lightweight cookie/header-based approach
-  // In practice, the middleware sets headers. For client-side display we fetch from an endpoint or use a cookie.
-  useEffect(() => {
-    // Read role from cookie set by middleware, or default to ADMIN
-    const getCookieValue = (name: string) => {
-      const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-      return match ? match[2] : null;
-    };
-    let cookieRole =
-      getCookieValue("mock_user_role") ||
-      getCookieValue("x-user-role");
-    if (!cookieRole) {
-      const mockToken = getCookieValue("mock_token");
-      if (mockToken && mockToken.startsWith("mock_jwt_")) {
-        cookieRole = mockToken.split("_")[2]?.toUpperCase();
-      }
-    }
-    if (cookieRole) {
-      setUserRole(cookieRole);
-    }
-  }, []);
-
-  const handleSwitchRole = () => {
-    if (userRole === "ADMIN") {
-      document.cookie = "mock_persona=user-carol-mgr; path=/; max-age=86400";
-      document.cookie = "mock_user_role=MANAGER; path=/; max-age=86400";
-      document.cookie = "mock_token=mock_jwt_manager_user-carol-mgr; path=/; max-age=86400";
-      window.location.reload();
-    } else {
-      document.cookie = "mock_persona=user-dave-adm; path=/; max-age=86400";
-      document.cookie = "mock_user_role=ADMIN; path=/; max-age=86400";
-      document.cookie = "mock_token=mock_jwt_admin_user-dave-adm; path=/; max-age=86400";
-      window.location.reload();
-    }
-  };
 
   const navItems: NavItem[] = [
     {
@@ -177,39 +139,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* User Role Badge, Storefront Link & Collapse Toggle */}
+        {/* Sidebar Footer — Persona Switcher + Collapse */}
         <div className="border-t border-slate-700 px-3 py-3 space-y-2 shrink-0">
-          {!collapsed && (
-            <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-white/5">
-              <div className="flex items-center gap-2 min-w-0">
-                <Shield className="w-4 h-4 text-slate-400 shrink-0" />
-                <div className="min-w-0">
-                  <span className="text-[10px] text-slate-400 block">Role</span>
-                  <span className="text-xs font-bold text-white">{userRole}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSwitchRole}
-                title={`Switch to ${userRole === "ADMIN" ? "Manager (Carol)" : "Admin (Dave)"}`}
-                className="text-[10px] px-2 py-0.5 rounded bg-indigo-600/80 hover:bg-indigo-500 text-white font-semibold transition shrink-0"
-              >
-                {userRole === "ADMIN" ? "→ Mgr" : "→ Admin"}
-              </button>
-            </div>
-          )}
-
-          {/* Go to Storefront */}
-          <a
-            href="/"
-            title="Switch to User / Storefront"
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            <Store className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>← Storefront</span>}
-          </a>
+          <PersonaSwitcher variant="dark" collapsed={collapsed} />
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}

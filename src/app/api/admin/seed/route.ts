@@ -8,6 +8,7 @@ import {
   SEED_BUDGETS,
   SEED_USERS,
   SEED_STORE_SETTINGS,
+  SEED_AUDIT_LOGS,
 } from "@/lib/mock/seed-data";
 import { eq } from "drizzle-orm";
 
@@ -124,6 +125,23 @@ export async function GET(req: NextRequest) {
         logoUrl: SEED_STORE_SETTINGS.logoUrl,
         currency: SEED_STORE_SETTINGS.currency,
       });
+    }
+
+    // 7. Seed Audit Logs
+    const existingLogs = await db.select().from(schema.auditLogs);
+    if (existingLogs.length === 0) {
+      for (const log of SEED_AUDIT_LOGS) {
+        await db.insert(schema.auditLogs).values({
+          id: log.id,
+          adminUserId: log.adminUserId,
+          action: log.action,
+          entityType: log.entityType,
+          entityId: log.entityId,
+          oldValue: log.oldValue,
+          newValue: log.newValue,
+          createdAt: log.createdAt,
+        });
+      }
     }
 
     return NextResponse.json({

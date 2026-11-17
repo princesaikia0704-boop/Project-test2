@@ -548,3 +548,79 @@ export const SEED_STORE_SETTINGS: StoreSettingsSeed = {
   currency: "USD",
   updatedAt: NOW,
 };
+
+export interface AuditLogSeed {
+  id: string;
+  adminUserId: string;
+  action: "CREATE" | "UPDATE" | "DELETE" | "APPROVE" | "REJECT" | "STOCK_ADJUST" | "CONFIG_UPDATE";
+  entityType: "PRODUCT" | "CATEGORY" | "ORDER" | "STORE_SETTINGS" | "DEPARTMENT_BUDGET" | "USER" | "DEPARTMENT";
+  entityId: string;
+  oldValue: string | null;
+  newValue: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  createdAt: Date;
+}
+
+export const SEED_AUDIT_LOGS: AuditLogSeed[] = [
+  {
+    id: "60000000-0000-0000-0000-000000000001",
+    adminUserId: "30000000-0000-0000-0000-000000000003", // David Vance (Admin)
+    action: "CONFIG_UPDATE",
+    entityType: "STORE_SETTINGS",
+    entityId: "1",
+    oldValue: JSON.stringify({ autoApproveLimitCents: 5000, companyName: "Office Depot" }),
+    newValue: JSON.stringify({ autoApproveLimitCents: 10000, companyName: "Office Store" }),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000002",
+    adminUserId: "30000000-0000-0000-0000-000000000003", // David Vance (Admin)
+    action: "CONFIG_UPDATE",
+    entityType: "DEPARTMENT_BUDGET",
+    entityId: "20000000-0000-0000-0000-000000000001", // Engineering Budget
+    oldValue: JSON.stringify({ totalCents: 800000, remainingCents: 600000 }),
+    newValue: JSON.stringify({ totalCents: 1000000, remainingCents: 745000 }),
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000003",
+    adminUserId: "30000000-0000-0000-0000-000000000003", // David Vance (Admin)
+    action: "STOCK_ADJUST",
+    entityType: "PRODUCT",
+    entityId: "50000000-0000-0000-0000-000000000001", // Retractable Gel Ink Pens
+    oldValue: JSON.stringify({ stockQuantity: 100 }),
+    newValue: JSON.stringify({ stockQuantity: 250, note: "Restocked from Q4 vendor shipment" }),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000004",
+    adminUserId: "30000000-0000-0000-0000-000000000002", // Carol Manager
+    action: "APPROVE",
+    entityType: "ORDER",
+    entityId: "ORD-202611-1001",
+    oldValue: JSON.stringify({ status: "PENDING_APPROVAL" }),
+    newValue: JSON.stringify({ status: "APPROVED", comment: "Approved for Engineering team sprints." }),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000005",
+    adminUserId: "30000000-0000-0000-0000-000000000003", // David Vance (Admin)
+    action: "STOCK_ADJUST",
+    entityType: "PRODUCT",
+    entityId: "50000000-0000-0000-0000-000000000003", // Standing Desk Converter
+    oldValue: JSON.stringify({ stockQuantity: 15 }),
+    newValue: JSON.stringify({ stockQuantity: 30, note: "Warehouse replenishment" }),
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000006",
+    adminUserId: "30000000-0000-0000-0000-000000000002", // Carol Manager
+    action: "REJECT",
+    entityType: "ORDER",
+    entityId: "ORD-202611-1002",
+    oldValue: JSON.stringify({ status: "PENDING_APPROVAL" }),
+    newValue: JSON.stringify({ status: "REJECTED", reason: "Exceeds quarterly consumable budget allocation." }),
+    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+  },
+];

@@ -67,6 +67,7 @@ export default function AuditLogsPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters
   const [actionFilter, setActionFilter] = useState("ALL");
@@ -90,11 +91,21 @@ export default function AuditLogsPage() {
         if (res.ok) {
           const data = await res.json();
           setLogs(data.logs || []);
-          setTotalCount(data.total || 0);
+          setTotalCount(data.total ?? data.count ?? (data.logs?.length || 0));
           setCurrentPage(page);
+          setErrorMessage(null);
+        } else if (res.status === 403) {
+          setErrorMessage(
+            "Access Restricted: Audit logs require Manager or Admin permissions. Switch to Carol Manager (MGR) or David Vance (ADM) in the persona switcher."
+          );
+          setLogs([]);
+          setTotalCount(0);
+        } else {
+          setErrorMessage("Failed to load audit logs. Please try again.");
         }
       } catch (err) {
         console.error("Failed to fetch audit logs", err);
+        setErrorMessage("Network error occurred while fetching audit logs.");
       } finally {
         setIsLoading(false);
       }
@@ -114,23 +125,49 @@ export default function AuditLogsPage() {
   };
 
   const renderJsonDiff = (
-    oldVal: Record<string, unknown> | null,
-    newVal: Record<string, unknown> | null
+    oldValRaw: any,
+    newValRaw: any
   ) => {
+    let oldVal = oldValRaw;
+    let newVal = newValRaw;
+    if (typeof oldVal === "string") {
+      try {
+        oldVal = JSON.parse(oldVal);
+      } catch {}
+    }
+    if (typeof newVal === "string") {
+      try {
+        newVal = JSON.parse(newVal);
+      } catch {}
+    }
+
     if (!oldVal && !newVal) {
       return <p className="text-xs text-slate-400 italic">No change data recorded.</p>;
     }
 
+    const isOldObj = typeof oldVal === "object" && oldVal !== null;
+    const isNewObj = typeof newVal === "object" && newVal !== null;
+
+    if (!isOldObj && !isNewObj) {
+      return (
+        <div className="text-xs">
+          <span className="text-rose-600 line-through mr-2">{String(oldVal ?? "—")}</span>
+          <ArrowRight className="inline w-3 h-3 text-slate-400 mr-2" />
+          <span className="text-emerald-700 font-semibold">{String(newVal ?? "—")}</span>
+        </div>
+      );
+    }
+
     const allKeys = new Set([
-      ...Object.keys(oldVal || {}),
-      ...Object.keys(newVal || {}),
+      ...(isOldObj ? Object.keys(oldVal) : []),
+      ...(isNewObj ? Object.keys(newVal) : []),
     ]);
 
     return (
       <div className="space-y-1.5">
         {Array.from(allKeys).map((key) => {
-          const oldV = oldVal?.[key];
-          const newV = newVal?.[key];
+          const oldV = isOldObj ? oldVal[key] : undefined;
+          const newV = isNewObj ? newVal[key] : undefined;
           const changed = JSON.stringify(oldV) !== JSON.stringify(newV);
 
           return (
@@ -146,11 +183,11 @@ export default function AuditLogsPage() {
               {changed ? (
                 <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <span className="text-rose-600 line-through break-all">
-                    {oldV !== undefined ? JSON.stringify(oldV) : "—"}
+                    {oldV !== undefined ? (typeof oldV === "object" ? JSON.stringify(oldV) : String(oldV)) : "—"}
                   </span>
                   <ArrowRight className="w-3 h-3 text-slate-400 shrink-0" />
                   <span className="text-emerald-700 font-semibold break-all">
-                    {newV !== undefined ? JSON.stringify(newV) : "—"}
+                    {newV !== undefined ? (typeof newV === "object" ? JSON.stringify(newV) : String(newV)) : "—"}
                   </span>
                 </div>
               ) : (
@@ -286,6 +323,20 @@ export default function AuditLogsPage() {
           </button>
         )}
       </div>
+
+      {/* Access Restriction or Error Alert */}
+      {errorMessage && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl flex items-center justify-between gap-3 text-xs">
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="text-amber-700 hover:text-amber-900 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Audit Log Table */}
       {isLoading ? (

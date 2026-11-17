@@ -10,6 +10,7 @@ import {
   SEED_CATEGORIES,
   SEED_PRODUCTS,
   SEED_STORE_SETTINGS,
+  SEED_AUDIT_LOGS,
   DepartmentSeed,
   UserSeed,
   DepartmentBudgetSeed,
@@ -141,7 +142,7 @@ export class MockDataStore {
     this.orders.clear();
     this.orderItems.clear();
     this.storeSettings = { ...SEED_STORE_SETTINGS };
-    this.auditLogs = [];
+    this.auditLogs = SEED_AUDIT_LOGS.map((a) => ({ ...a }));
 
     // Seed realistic sample orders for instant dashboard and approvals population
     const sampleOrderId1 = "60000000-0000-0000-0000-000000000001";
@@ -614,16 +615,20 @@ export class MockDataStore {
     return { ...rec };
   }
 
-  public getAuditLogs(filter?: {
+  public getFilteredAuditLogs(filter?: {
     entityType?: string;
     entityId?: string;
     adminUserId?: string;
-    limit?: number;
-    offset?: number;
+    action?: string;
+    from?: string;
+    to?: string;
   }): AuditLogRecord[] {
     let list = this.auditLogs;
-    if (filter?.entityType) {
+    if (filter?.entityType && filter.entityType !== "ALL") {
       list = list.filter((l) => l.entityType === filter.entityType);
+    }
+    if (filter?.action && filter.action !== "ALL") {
+      list = list.filter((l) => l.action === filter.action);
     }
     if (filter?.entityId) {
       list = list.filter((l) => l.entityId === filter.entityId);
@@ -631,9 +636,43 @@ export class MockDataStore {
     if (filter?.adminUserId) {
       list = list.filter((l) => l.adminUserId === filter.adminUserId);
     }
+    if (filter?.from) {
+      const fromDate = new Date(filter.from);
+      list = list.filter((l) => new Date(l.createdAt) >= fromDate);
+    }
+    if (filter?.to) {
+      const toDate = new Date(filter.to);
+      toDate.setHours(23, 59, 59, 999);
+      list = list.filter((l) => new Date(l.createdAt) <= toDate);
+    }
+    return list;
+  }
+
+  public getAuditLogs(filter?: {
+    entityType?: string;
+    entityId?: string;
+    adminUserId?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }): AuditLogRecord[] {
+    const list = this.getFilteredAuditLogs(filter);
     const offset = filter?.offset ?? 0;
     const limit = filter?.limit ?? 50;
     return list.slice(offset, offset + limit);
+  }
+
+  public countAuditLogs(filter?: {
+    entityType?: string;
+    entityId?: string;
+    adminUserId?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+  }): number {
+    return this.getFilteredAuditLogs(filter).length;
   }
 
   // ---------------------------------------------------------------------------

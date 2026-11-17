@@ -3,7 +3,7 @@
  * Enforces chronological append-only audit logging for system actions and mutations.
  */
 
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, gte, lte, sql } from "drizzle-orm";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { AuditLog, NewAuditLog } from "@/lib/db/schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
@@ -13,6 +13,9 @@ export interface ListAuditLogsFilter {
   entityType?: string;
   entityId?: string;
   adminUserId?: string;
+  action?: string;
+  from?: string;
+  to?: string;
   limit?: number;
   offset?: number;
 }
@@ -20,6 +23,7 @@ export interface ListAuditLogsFilter {
 export interface IAuditRepository {
   record(entry: Omit<NewAuditLog, "id" | "createdAt">, tx?: any): Promise<AuditLog>;
   listLogs(filter?: ListAuditLogsFilter): Promise<AuditLog[]>;
+  listLogsWithCount(filter?: ListAuditLogsFilter): Promise<{ logs: AuditLog[]; total: number }>;
 }
 
 export class AuditRepository implements IAuditRepository {
@@ -38,13 +42,23 @@ export class AuditRepository implements IAuditRepository {
   }
 
   async listLogs(filter?: ListAuditLogsFilter): Promise<AuditLog[]> {
+    const res = await this.listLogsWithCount(filter);
+    return res.logs;
+  }
+
+  async listLogsWithCount(filter?: ListAuditLogsFilter): Promise<{ logs: AuditLog[]; total: number }> {
     if (isDatabaseMocked()) {
-      return mockDataStore.getAuditLogs(filter) as unknown as AuditLog[];
+      const logs = mockDataStore.getAuditLogs(filter) as unknown as AuditLog[];
+      const total = mockDataStore.countAuditLogs(filter);
+      return { logs, total };
     }
 
     const conditions: any[] = [];
     if (filter?.entityType) {
       conditions.push(eq(schema.auditLogs.entityType, filter.entityType as any));
+    }
+    if (filter?.action) {
+      conditions.push(eq(schema.auditLogs.action, filter.action as any));
     }
     if (filter?.entityId) {
       conditions.push(eq(schema.auditLogs.entityId, filter.entityId));
@@ -52,6 +66,23 @@ export class AuditRepository implements IAuditRepository {
     if (filter?.adminUserId) {
       conditions.push(eq(schema.auditLogs.adminUserId, normalizeUserUuid(filter.adminUserId)));
     }
+    if (filter?.from) {
+      conditions.push(gte(schema.auditLogs.createdAt, new Date(filter.from)));
+    }
+    if (filter?.to) {
+      const toDate = new Date(filter.to);
+      toDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(schema.auditLogs.createdAt, toDate));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const countQuery = db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.auditLogs);
+    if (whereClause) countQuery.where(whereClause);
+    const countRes = await countQuery;
+    const total = Number(countRes[0]?.count ?? 0);
 
     const query = db
       .select()
@@ -60,11 +91,12 @@ export class AuditRepository implements IAuditRepository {
       .limit(filter?.limit ?? 50)
       .offset(filter?.offset ?? 0);
 
-    if (conditions.length > 0) {
-      query.where(and(...conditions));
+    if (whereClause) {
+      query.where(whereClause);
     }
 
-    return await query;
+    const logs = await query;
+    return { logs, total };
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Users, Check, ChevronDown } from "lucide-react";
+import { Users, Check, ChevronDown, LogOut } from "lucide-react";
 
 export type Persona = {
   id: string;
@@ -54,6 +54,15 @@ function setPersonaCookies(p: Persona) {
   document.cookie = `mock_user_role=${p.role}; path=/; max-age=86400`;
   document.cookie = `mock_token=mock_jwt_${p.role.toLowerCase()}_${p.id}; path=/; max-age=86400`;
   localStorage.setItem("active_persona", JSON.stringify(p));
+}
+
+function handleSignOut() {
+  // Expire all persona cookies immediately
+  document.cookie = "mock_persona=; path=/; max-age=0";
+  document.cookie = "mock_user_role=; path=/; max-age=0";
+  document.cookie = "mock_token=; path=/; max-age=0";
+  localStorage.removeItem("active_persona");
+  window.location.href = "/login";
 }
 
 /** variant="light"  → used in the white storefront navbar
@@ -159,6 +168,22 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
               </button>
             );
           })}
+
+          {/* Sign Out */}
+          <div className={`border-t mt-1 pt-1 ${variant === "dark" ? "border-slate-600" : "border-slate-100"}`}>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition text-xs font-medium ${
+                variant === "dark"
+                  ? "text-red-400 hover:bg-white/5 hover:text-red-300"
+                  : "text-red-500 hover:bg-red-50"
+              }`}
+            >
+              <LogOut className="w-3.5 h-3.5 shrink-0" />
+              Sign out
+            </button>
+          </div>
         </div>
       )}
     </div>

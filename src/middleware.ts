@@ -279,8 +279,8 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith("/(auth)/") ||
     pathname.startsWith("/api/workers/") ||
     pathname === "/api/products" ||
-    pathname.startsWith("/api/products?") ||
-    pathname === "/";
+    pathname.startsWith("/api/products/") ||
+    pathname === "/";           // catalog is public; /cart /orders /admin all require login
 
   // 3. Resolve Persona / JWT
   const persona = resolveEdgePersona(req);

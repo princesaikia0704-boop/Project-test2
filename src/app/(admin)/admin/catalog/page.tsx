@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { Product, Category } from "@/lib/db/schema";
 import {
@@ -19,6 +19,8 @@ import {
   Save,
   Trash2,
   AlertTriangle,
+  UploadCloud,
+  ImageIcon,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -95,6 +97,12 @@ export default function CatalogPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
+  // Image upload state
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // ---------------------------------------------------------------------------
   // 300ms debounce
   // ---------------------------------------------------------------------------
@@ -163,6 +171,7 @@ export default function CatalogPage() {
       ...defaultProductForm,
       categoryId: categories[0]?.id || "",
     });
+    setUploadError(null);
     setShowProductModal(true);
   };
 
@@ -177,6 +186,7 @@ export default function CatalogPage() {
       imageUrl: product.imageUrl || "",
       isActive: product.isActive,
     });
+    setUploadError(null);
     setShowProductModal(true);
   };
 
@@ -349,6 +359,24 @@ export default function CatalogPage() {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
+  };
+
+  // Image upload handler
+  const handleImageUpload = async (file: File) => {
+    setUploadError(null);
+    setIsUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/admin/upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      setProductForm((prev) => ({ ...prev, imageUrl: data.url }));
+    } catch (err: any) {
+      setUploadError(err.message || "Upload failed");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -771,37 +799,115 @@ export default function CatalogPage() {
                   </select>
                 </div>
               </div>
-              {/* Stock & Image */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Stock Quantity
-                  </label>
+              {/* Stock Quantity */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Stock Quantity
+                </label>
+                <input
+                  type="number"
+                  data-testid="product-stock-input"
+                  value={productForm.stockQuantity}
+                  onChange={(e) =>
+                    setProductForm({
+                      ...productForm,
+                      stockQuantity: parseInt(e.target.value || "0", 10),
+                    })
+                  }
+                  min="0"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+
+              {/* Image Upload Zone */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Product Image
+                </label>
+
+                {/* Preview strip — shown when an image URL exists */}
+                {productForm.imageUrl && (
+                  <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                    <img
+                      src={productForm.imageUrl}
+                      alt="Preview"
+                      className="w-14 h-14 rounded-lg object-cover bg-slate-200 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-700 truncate">{productForm.imageUrl}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Current image</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProductForm((p) => ({ ...p, imageUrl: "" }))}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-red-500 transition shrink-0"
+                      title="Remove image"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Drop zone */}
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragOver(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) handleImageUpload(file);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative flex flex-col items-center justify-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                    isDragOver
+                      ? "border-indigo-400 bg-indigo-50"
+                      : "border-slate-200 bg-slate-50 hover:border-slate-400 hover:bg-slate-100"
+                  }`}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                      <p className="text-xs text-slate-500">Uploading…</p>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-6 h-6 text-slate-400" />
+                      <p className="text-xs font-medium text-slate-600">
+                        Drop image here or <span className="text-indigo-600 underline">browse</span>
+                      </p>
+                      <p className="text-[10px] text-slate-400">JPEG, PNG, WebP, GIF · Max 5 MB</p>
+                    </>
+                  )}
                   <input
-                    type="number"
-                    data-testid="product-stock-input"
-                    value={productForm.stockQuantity}
-                    onChange={(e) =>
-                      setProductForm({
-                        ...productForm,
-                        stockQuantity: parseInt(e.target.value || "0", 10),
-                      })
-                    }
-                    min="0"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                      e.target.value = "";
+                    }}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Image URL
-                  </label>
+
+                {uploadError && (
+                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                    {uploadError}
+                  </p>
+                )}
+
+                {/* Fallback: manual URL entry */}
+                <div className="mt-2">
                   <input
-                    type="url"
+                    type="text"
                     data-testid="product-image-input"
                     value={productForm.imageUrl}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    placeholder="Or paste an image URL / /uploads/filename.jpg"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-400"
                   />
                 </div>
               </div>

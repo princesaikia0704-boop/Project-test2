@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
-import { BudgetMeter } from "@/components/storefront/BudgetMeter";
 import { formatCurrency } from "@/lib/utils";
 import {
   Plus,
@@ -24,11 +23,7 @@ export default function CartPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Default department budget & threshold
-  const departmentBudget = { totalCents: 100000, remainingCents: 100000 };
   const autoApproveLimitCents = 10000; // $100
-
-  const isOverBudget = cartTotalCents > departmentBudget.remainingCents;
   const isAutoApproved = cartTotalCents <= autoApproveLimitCents;
 
   const handleCheckout = async () => {
@@ -183,16 +178,8 @@ export default function CartPage() {
           </div>
         </div>
 
-        {/* Right Column: Budget Breakdown & Submit */}
+        {/* Right Column: Submit */}
         <div className="space-y-4">
-          {/* BudgetMeter commented out for now:
-          <BudgetMeter
-            totalCents={departmentBudget.totalCents}
-            remainingCents={departmentBudget.remainingCents}
-            cartTotalCents={cartTotalCents}
-            showDetails={true}
-          />
-          */}
 
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
             <h3 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">

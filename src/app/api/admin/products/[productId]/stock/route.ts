@@ -39,7 +39,10 @@ export const POST = withApiReliability(
       );
     }
 
-    const adminUserId = req.headers.get("x-user-id") || "admin";
+    const adminUserId =
+      req.headers.get("x-user-id") ||
+      req.cookies.get("mock_persona")?.value ||
+      "admin";
 
     try {
       const result = await adjustProductStock({
@@ -66,5 +69,5 @@ export const POST = withApiReliability(
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );

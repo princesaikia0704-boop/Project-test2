@@ -75,5 +75,5 @@ export const POST = withApiReliability(
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );

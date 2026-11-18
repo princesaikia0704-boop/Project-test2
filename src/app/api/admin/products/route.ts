@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
 import { productRepo } from "@/repositories/product.repo";
+import { auditRepo } from "@/repositories/audit.repo";
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
@@ -24,7 +25,7 @@ export const GET = withApiReliability(
       { status: 200 }
     );
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );
 
 export const POST = withApiReliability(
@@ -87,6 +88,30 @@ export const POST = withApiReliability(
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
     });
 
+    const adminUserId =
+      req.headers.get("x-user-id") ||
+      req.cookies.get("mock_persona")?.value ||
+      "user-dave-adm";
+
+    try {
+      await auditRepo.record({
+        adminUserId,
+        action: "CREATE",
+        entityType: "PRODUCT",
+        entityId: createdProduct.id,
+        oldValue: null,
+        newValue: JSON.stringify({
+          name: createdProduct.name,
+          priceCents: createdProduct.priceCents,
+          stockQuantity: createdProduct.stockQuantity,
+          categoryId: createdProduct.categoryId,
+          sku: createdProduct.sku,
+        }),
+      });
+    } catch (auditErr) {
+      console.error("Failed to write audit log for product creation:", auditErr);
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -95,7 +120,7 @@ export const POST = withApiReliability(
       { status: 201 }
     );
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );
 
 export const PATCH = withApiReliability(
@@ -161,7 +186,40 @@ export const PATCH = withApiReliability(
     if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
 
     try {
+      const existingProduct = await productRepo.findById(body.id);
+
       const updatedProduct = await productRepo.update(body.id, updateData);
+
+      const adminUserId =
+        req.headers.get("x-user-id") ||
+        req.cookies.get("mock_persona")?.value ||
+        "user-dave-adm";
+
+      try {
+        await auditRepo.record({
+          adminUserId,
+          action: "UPDATE",
+          entityType: "PRODUCT",
+          entityId: updatedProduct.id,
+          oldValue: existingProduct
+            ? JSON.stringify({
+                name: existingProduct.name,
+                priceCents: existingProduct.priceCents,
+                stockQuantity: existingProduct.stockQuantity,
+                isActive: existingProduct.isActive,
+              })
+            : null,
+          newValue: JSON.stringify({
+            name: updatedProduct.name,
+            priceCents: updatedProduct.priceCents,
+            stockQuantity: updatedProduct.stockQuantity,
+            isActive: updatedProduct.isActive,
+          }),
+        });
+      } catch (auditErr) {
+        console.error("Failed to write audit log for product update:", auditErr);
+      }
+
       return NextResponse.json(
         {
           success: true,
@@ -180,5 +238,71 @@ export const PATCH = withApiReliability(
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
+);
+
+export const DELETE = withApiReliability(
+  async (req: NextRequest) => {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch {
+        // ignore json parse error
+      }
+    }
+
+    if (!id || typeof id !== "string") {
+      return createErrorResponse(
+        "ValidationError",
+        "Product ID is required for deletion",
+        422
+      );
+    }
+
+    const existingProduct = await productRepo.findById(id);
+    if (!existingProduct) {
+      return createErrorResponse(
+        "ProductNotFound",
+        `Product with ID '${id}' not found`,
+        404
+      );
+    }
+
+    await productRepo.delete(id);
+
+    const adminUserId =
+      req.headers.get("x-user-id") ||
+      req.cookies.get("mock_persona")?.value ||
+      "user-dave-adm";
+
+    try {
+      await auditRepo.record({
+        adminUserId,
+        action: "DELETE",
+        entityType: "PRODUCT",
+        entityId: id,
+        oldValue: JSON.stringify({
+          name: existingProduct.name,
+          sku: existingProduct.sku,
+          priceCents: existingProduct.priceCents,
+          stockQuantity: existingProduct.stockQuantity,
+        }),
+        newValue: null,
+      });
+    } catch (auditErr) {
+      console.error("Failed to write audit log for product deletion:", auditErr);
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Product deleted successfully",
+      },
+      { status: 200 }
+    );
+  },
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );

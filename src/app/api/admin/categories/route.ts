@@ -85,7 +85,7 @@ export const POST = withApiReliability(
       { status: 201 }
     );
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );
 
 export const PATCH = withApiReliability(
@@ -180,5 +180,5 @@ export const PATCH = withApiReliability(
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN"] }
+  { allowedRoles: ["ADMIN", "MANAGER"] }
 );

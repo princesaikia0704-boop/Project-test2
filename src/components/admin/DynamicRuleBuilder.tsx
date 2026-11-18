@@ -147,12 +147,12 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
     <div data-testid="dynamic-rule-builder" className="w-full max-w-2xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100">
-          <Settings className="w-5 h-5 text-slate-600" />
+        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800">
+          <Settings className="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Store Configuration</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Store Configuration</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Manage approval rules, branding, and display settings.
           </p>
         </div>
@@ -164,17 +164,17 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
         <div className="space-y-1.5">
           <label
             htmlFor="auto-approve-limit"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700"
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <DollarSign className="w-4 h-4 text-slate-400" />
+            <DollarSign className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Auto-Approval Threshold
           </label>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Orders below this amount will be automatically approved without manager review.
           </p>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">
-              $
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-medium">
+              ₹
             </span>
             <input
               data-testid="rule-builder-approval-limit"
@@ -185,17 +185,17 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
               value={approvalDollars}
               onChange={(e) => setApprovalDollars(e.target.value)}
               className={cn(
-                "w-full pl-8 pr-4 py-2.5 rounded-lg border text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
+                "w-full pl-8 pr-4 py-2.5 rounded-lg border text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
                 validationErrors.approvalDollars
                   ? "border-red-300 focus:ring-red-400"
-                  : "border-slate-300 focus:ring-slate-500"
+                  : "border-slate-300 dark:border-slate-700 focus:ring-slate-500"
               )}
             />
           </div>
           {validationErrors.approvalDollars && (
             <p className="text-xs text-red-600">{validationErrors.approvalDollars}</p>
           )}
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Internal value: {dollarsToCents(approvalDollars).toLocaleString()} cents
           </p>
         </div>
@@ -204,9 +204,9 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
         <div className="space-y-1.5">
           <label
             htmlFor="company-name"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700"
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <Building2 className="w-4 h-4 text-slate-400" />
+            <Building2 className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Company Name
           </label>
           <input
@@ -217,10 +217,10 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
             onChange={(e) => setCompanyName(e.target.value)}
             maxLength={255}
             className={cn(
-              "w-full px-4 py-2.5 rounded-lg border text-slate-900 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
+              "w-full px-4 py-2.5 rounded-lg border text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
               validationErrors.companyName
                 ? "border-red-300 focus:ring-red-400"
-                : "border-slate-300 focus:ring-slate-500"
+                : "border-slate-300 dark:border-slate-700 focus:ring-slate-500"
             )}
             placeholder="e.g. Acme Corporation"
           />
@@ -233,9 +233,9 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
         <div className="space-y-1.5">
           <label
             htmlFor="primary-color"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700"
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <Palette className="w-4 h-4 text-slate-400" />
+            <Palette className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Primary Brand Color
           </label>
           <div className="flex items-center gap-3">
@@ -247,17 +247,17 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
               onChange={(e) => setPrimaryColor(e.target.value)}
               maxLength={7}
               className={cn(
-                "flex-1 px-4 py-2.5 rounded-lg border text-slate-900 font-mono focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
+                "flex-1 px-4 py-2.5 rounded-lg border text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-mono focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
                 validationErrors.primaryColor
                   ? "border-red-300 focus:ring-red-400"
-                  : "border-slate-300 focus:ring-slate-500"
+                  : "border-slate-300 dark:border-slate-700 focus:ring-slate-500"
               )}
               placeholder="#0F172A"
             />
             {/* Color Preview Square */}
             <div
               data-testid="rule-builder-color-preview"
-              className="w-11 h-11 rounded-lg border-2 border-slate-200 shrink-0 shadow-inner"
+              className="w-11 h-11 rounded-lg border-2 border-slate-200 dark:border-slate-700 shrink-0 shadow-inner"
               style={{
                 backgroundColor: isValidHexColor(primaryColor.trim())
                   ? primaryColor.trim()
@@ -279,9 +279,9 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
         <div className="space-y-1.5">
           <label
             htmlFor="logo-url"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700"
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <ImageIcon className="w-4 h-4 text-slate-400" />
+            <ImageIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Logo URL
           </label>
           <input
@@ -290,12 +290,12 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
             type="text"
             value={logoUrl}
             onChange={(e) => setLogoUrl(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-shadow"
+            className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-shadow"
             placeholder="https://example.com/logo.png"
           />
           {/* Logo Preview */}
           {logoUrl.trim() && (
-            <div className="mt-2 flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <div className="mt-2 flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 data-testid="rule-builder-logo-preview"
@@ -306,14 +306,14 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
                   (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
-              <span className="text-xs text-slate-500 truncate flex-1">{logoUrl.trim()}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">{logoUrl.trim()}</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
         <button
           data-testid="rule-builder-reset-btn"
           type="button"
@@ -322,8 +322,8 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
           className={cn(
             "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all",
             hasChanges
-              ? "text-slate-700 bg-white border-slate-300 hover:bg-slate-50"
-              : "text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed"
+              ? "text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+              : "text-slate-400 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 cursor-not-allowed"
           )}
         >
           <RotateCcw className="w-4 h-4" />
@@ -337,8 +337,8 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
           className={cn(
             "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all",
             isFormValid && hasChanges
-              ? "bg-slate-900 hover:bg-slate-800 active:scale-95"
-              : "bg-slate-300 cursor-not-allowed"
+              ? "bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 dark:hover:bg-indigo-500 active:scale-95"
+              : "bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed"
           )}
         >
           <Save className="w-4 h-4" />

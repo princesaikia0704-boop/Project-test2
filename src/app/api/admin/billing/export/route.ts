@@ -143,9 +143,9 @@ export async function GET(req: NextRequest) {
     "Product SKU",
     "Product Name",
     "Quantity",
-    "Unit Price ($)",
-    "Item Total ($)",
-    "Order Total ($)",
+    "Unit Price (₹)",
+    "Item Total (₹)",
+    "Order Total (₹)",
   ];
 
   const csvRows = [

@@ -186,7 +186,7 @@ export default function CartPage() {
               Order Summary
             </h3>
 
-            {/* Price breakdown commented out for now:
+            {/* Price breakdown */}
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex justify-between">
                 <span>Subtotal</span>
@@ -198,14 +198,13 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between">
                 <span>Estimated Tax</span>
-                <span className="font-semibold text-slate-900">$0.00 (Exempt)</span>
+                <span className="font-semibold text-slate-900">₹0.00 (Exempt)</span>
               </div>
               <div className="pt-2 border-t border-slate-200 flex justify-between text-sm">
                 <span className="font-bold text-slate-900">Total Order</span>
                 <span className="font-black text-slate-900">{formatCurrency(cartTotalCents)}</span>
               </div>
             </div>
-            */}
 
             {/* Approval Routing Notice commented out for now:
             <div

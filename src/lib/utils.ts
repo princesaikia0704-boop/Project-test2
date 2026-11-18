@@ -10,13 +10,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Format cents to USD display string.
- * @example formatCurrency(15099) => "$150.99"
+ * Format cents to INR (Indian Rupee) display string.
+ * @example formatCurrency(15099) => "₹150.99"
  */
 export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "USD",
+    currency: "INR",
+    maximumFractionDigits: 2,
   }).format(cents / 100);
 }
 

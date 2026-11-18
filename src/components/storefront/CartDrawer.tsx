@@ -151,11 +151,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       <h4 className="text-xs font-semibold text-slate-900 truncate" title={product.name}>
                         {product.name}
                       </h4>
-                      {/* Price per item commented out for now:
                       <p className="text-xs text-slate-500 mb-1.5">
                         {formatCurrency(product.priceCents)} each
                       </p>
-                      */}
 
                       <div className="flex items-center justify-between">
                         {/* Stepper */}
@@ -182,11 +180,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                         {/* Subtotal & Remove */}
                         <div className="flex items-center gap-2">
-                          {/* Item total price commented out for now:
                           <span className="text-xs font-bold text-slate-900">
                             {formatCurrency(product.priceCents * quantity)}
                           </span>
-                          */}
                           <button
                             type="button"
                             onClick={() => removeFromCart(product.id)}
@@ -244,14 +240,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         {/* Footer Checkout Controls */}
         {items.length > 0 && (
           <div className="p-5 border-t border-slate-200 bg-slate-50 space-y-3">
-            {/* Cart Total commented out for now:
             <div className="flex justify-between items-baseline text-sm">
               <span className="text-slate-600">Cart Total</span>
               <span className="text-xl font-black text-slate-900">
                 {formatCurrency(cartTotalCents)}
               </span>
             </div>
-            */}
 
             <div className="flex gap-2">
               <Link

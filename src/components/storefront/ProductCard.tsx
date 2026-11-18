@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/lib/db/schema";
+import { formatCurrency } from "@/lib/utils";
 import { ShoppingCart, Plus, Minus, PackageCheck, AlertCircle, XCircle } from "lucide-react";
 
 export interface ProductCardProps {
@@ -115,17 +116,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 
         {/* Add to Cart Controls */}
         <div className="pt-3 border-t border-slate-100 mt-2">
-          {/* Price detail commented out for now:
+          {/* Price detail */}
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-xs text-slate-400 font-medium">Price</span>
             <span
               data-testid="product-price"
               className="text-lg font-bold text-slate-900"
             >
-              ${(product.priceCents / 100).toFixed(2)}
+              {formatCurrency(product.priceCents)}
             </span>
           </div>
-          */}
           <div className="flex items-center gap-2">
             {/* Quantity Stepper */}
             <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
@@ -161,13 +161,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               data-testid="add-to-cart-btn"
               onClick={handleAdd}
               disabled={isOutOfStock || !product.isActive || isAdding}
-              className={`flex-1 flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white transition-all ${
-                isOutOfStock
+              className={`flex-1 flex items-center justify-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white transition-all ${isOutOfStock
                   ? "bg-slate-300 cursor-not-allowed"
                   : isAdding
-                  ? "bg-emerald-600"
-                  : "bg-slate-900 hover:bg-slate-800 active:scale-95"
-              }`}
+                    ? "bg-emerald-600"
+                    : "bg-slate-900 hover:bg-slate-800 active:scale-95"
+                }`}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>{isOutOfStock ? "Unavailable" : isAdding ? "Added!" : "Add to Cart"}</span>

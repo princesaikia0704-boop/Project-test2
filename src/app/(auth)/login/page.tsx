@@ -32,7 +32,7 @@ const personas = [
     cardBg: "hover:bg-amber-50/40",
     btnBg: "bg-amber-500 hover:bg-amber-600",
     icon: <Users className="w-4 h-4" />,
-    description: "Approve or reject purchase orders above \$100. View department-wide order history.",
+    description: "Approve or reject purchase orders above ₹100. View department-wide order history.",
     targetPath: "/admin/approvals",
   },
   {

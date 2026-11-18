@@ -797,7 +797,7 @@ export default function CatalogPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Price ($) *
+                    Price (₹) *
                   </label>
                   <input
                     type="number"

@@ -306,24 +306,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
   // 5. RBAC Route Guard Checks
   if (persona) {
-    // ── Storefront Guard: MANAGER & ADMIN don't belong on the employee storefront ──
-    const isStorefrontRoute =
-      pathname === "/" ||
-      pathname === "/cart" ||
-      pathname.startsWith("/cart/") ||
-      pathname === "/orders" ||
-      pathname.startsWith("/orders/");
-
-    if (isStorefrontRoute && (persona.role === "MANAGER" || persona.role === "ADMIN")) {
-      const panelUrl = new URL(
-        persona.role === "MANAGER" ? "/admin/approvals" : "/admin",
-        req.url
-      );
-      const redirectResponse = NextResponse.redirect(panelUrl);
-      applyRateLimitHeaders(redirectResponse.headers, rateLimit);
-      return redirectResponse;
-    }
-
     // ── Admin Guard: EMPLOYEE cannot access /admin/* ──
     const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
 

@@ -119,14 +119,19 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
         mockDataStore.updateStock(item.productId, -item.quantity);
       }
 
-      // 3.5 Proceed directly with approval
-      const status: "APPROVED" | "PENDING_APPROVAL" = "APPROVED";
+      // 3.5 Dynamic Auto-Approval Threshold Check
+      const storeSettings = mockDataStore.getStoreSettings();
+      const autoApproveLimitCents = storeSettings?.autoApproveLimitCents ?? 10000;
+      const status: "APPROVED" | "PENDING_APPROVAL" =
+        calculatedTotalCents <= autoApproveLimitCents ? "APPROVED" : "PENDING_APPROVAL";
 
       // 3.6 Create Order & Order Items in database
+      const userUuid = normalizeUserUuid(input.userId);
+      const deptUuid = normalizeDepartmentUuid(input.departmentId);
       const created = mockDataStore.createOrder(
         {
-          userId: input.userId,
-          departmentId: input.departmentId,
+          userId: userUuid,
+          departmentId: deptUuid,
           totalCents: calculatedTotalCents,
           status,
           notes: input.notes || null,
@@ -219,8 +224,11 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
       await productRepo.updateStock(item.productId, -item.quantity, tx);
     }
 
-    // 5. Proceed directly with approval
-    const status: "APPROVED" | "PENDING_APPROVAL" = "APPROVED";
+    // 5. Dynamic Auto-Approval Threshold Check
+    const storeSettings = await configRepo.getStoreSettings(tx);
+    const autoApproveLimitCents = storeSettings?.autoApproveLimitCents ?? 10000;
+    const status: "APPROVED" | "PENDING_APPROVAL" =
+      calculatedTotalCents <= autoApproveLimitCents ? "APPROVED" : "PENDING_APPROVAL";
 
     // 6. Insert Order Record and Items in database
     const { order, items } = await orderRepo.createOrderRecord(
@@ -335,7 +343,8 @@ export async function cancelOrder(
     throw new DomainError("OrderNotFound", `Order ${orderId} not found`, 404);
   }
 
-  if (userId && order.userId !== userId) {
+  const normalizedUserId = normalizeUserUuid(userId);
+  if (userId && order.userId !== userId && order.userId !== normalizedUserId) {
     throw new DomainError("Forbidden", "Cannot cancel order belonging to another user", 403);
   }
 

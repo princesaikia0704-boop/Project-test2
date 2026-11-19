@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
 import { cancelOrder, DomainError } from "@/services/order.service";
 import { orderRepo } from "@/repositories/order.repo";
+import { normalizeUserUuid } from "@/lib/utils";
 
 export const POST = withApiReliability(
   async (req: NextRequest, context?: { params: Promise<{ orderId: string }> | { orderId: string } }) => {
@@ -32,7 +33,8 @@ export const POST = withApiReliability(
       );
     }
 
-    if (order.userId !== userId && userRole !== "ADMIN") {
+    const normalizedUserId = normalizeUserUuid(userId);
+    if (order.userId !== userId && order.userId !== normalizedUserId && userRole !== "ADMIN") {
       return createErrorResponse(
         "Forbidden",
         "Cannot cancel order belonging to another user",

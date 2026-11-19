@@ -20,7 +20,18 @@ export const storeSettingsSchema = z.object({
     .string({ required_error: "Primary color is required" })
     .trim()
     .regex(hexColorRegex, "Primary color must be valid hex code"),
-  logoUrl: z.string().url("Invalid logo URL").or(z.literal("")).optional().nullable(),
+  logoUrl: z
+    .string()
+    .refine(
+      (val) =>
+        val === "" ||
+        val.startsWith("/") ||
+        val.startsWith("data:") ||
+        /^https?:\/\//i.test(val),
+      "Invalid logo URL or path"
+    )
+    .optional()
+    .nullable(),
   currency: z.string().trim().length(3, "Currency code must be 3 characters").default("USD"),
 });
 

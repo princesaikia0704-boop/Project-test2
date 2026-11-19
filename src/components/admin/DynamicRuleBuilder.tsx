@@ -16,6 +16,8 @@ import {
   RotateCcw,
   Save,
   Check,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +78,8 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
   const [companyName, setCompanyName] = useState(currentConfig.company_name);
   const [primaryColor, setPrimaryColor] = useState(currentConfig.primary_color);
   const [logoUrl, setLogoUrl] = useState(currentConfig.logo_url);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Reset form when currentConfig changes externally
   useEffect(() => {
@@ -83,7 +87,68 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
     setCompanyName(currentConfig.company_name);
     setPrimaryColor(currentConfig.primary_color);
     setLogoUrl(currentConfig.logo_url);
+    setUploadError(null);
   }, [currentConfig]);
+
+  // Handle local image file upload
+  const handleLocalFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please select a valid image file (PNG, JPG, SVG, WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("Image file size must be less than 5 MB.");
+      return;
+    }
+
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          setLogoUrl(data.url);
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      // Fallback to client-side base64 Data URL if upload endpoint fails
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) setLogoUrl(dataUrl);
+        setIsUploading(false);
+      };
+      reader.onerror = () => {
+        setUploadError("Failed to read image file.");
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) setLogoUrl(dataUrl);
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      e.target.value = "";
+    }
+  };
 
   // ── Change Detection ───────────────────────────────────────────────────
   const hasChanges = useMemo(() => {
@@ -345,38 +410,105 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
           )}
         </div>
 
-        {/* Logo URL */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="logo-url"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            <ImageIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-            Logo URL
-          </label>
-          <input
-            data-testid="rule-builder-logo-url"
-            id="logo-url"
-            type="text"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-shadow"
-            placeholder="https://example.com/logo.png"
-          />
+        {/* Logo URL & Local Upload */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="logo-url"
+              className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              <ImageIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              Logo URL or Local File
+            </label>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Web URL or Local Upload
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <div className="relative flex-1">
+              <input
+                data-testid="rule-builder-logo-url"
+                id="logo-url"
+                type="text"
+                value={logoUrl}
+                onChange={(e) => {
+                  setLogoUrl(e.target.value);
+                  setUploadError(null);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                placeholder="https://example.com/logo.png or /logo.svg"
+              />
+            </div>
+
+            {/* Upload from Local File */}
+            <label
+              className={cn(
+                "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border text-xs font-semibold shadow-sm transition cursor-pointer shrink-0",
+                isUploading
+                  ? "opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                  : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+              )}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                  <span>Uploading…</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Upload from local file</span>
+                </>
+              )}
+              <input
+                type="file"
+                data-testid="logo-file-upload-input"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                className="hidden"
+                disabled={isUploading}
+                onChange={handleLocalFileUpload}
+              />
+            </label>
+          </div>
+
+          {uploadError && (
+            <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">{uploadError}</p>
+          )}
+
           {/* Logo Preview */}
           {logoUrl.trim() && (
-            <div className="mt-2 flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                data-testid="rule-builder-logo-preview"
-                src={logoUrl.trim()}
-                alt="Logo preview"
-                className="w-12 h-12 object-contain rounded"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
+            <div className="mt-2 flex items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/80">
+              <div className="flex items-center gap-3 min-w-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  data-testid="rule-builder-logo-preview"
+                  src={logoUrl.trim()}
+                  alt="Logo preview"
+                  className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shrink-0"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                    Active Logo Preview
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-sm sm:max-w-md">
+                    {logoUrl.trim().startsWith("data:") ? "Local Image File (Ready to save)" : logoUrl.trim()}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoUrl("");
+                  setUploadError(null);
                 }}
-              />
-              <span className="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">{logoUrl.trim()}</span>
+                className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold shrink-0"
+              >
+                Clear
+              </button>
             </div>
           )}
         </div>

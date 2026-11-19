@@ -45,6 +45,10 @@ const ACCENT_COLORS = [
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
 
+  // Role & Developer Site Detection
+  const [isDeveloper, setIsDeveloper] = useState(false);
+  const [userRole, setUserRole] = useState<string>("MANAGER");
+
   // Store Config State
   const [config, setConfig] = useState<StoreConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,6 +68,43 @@ export default function SettingsPage() {
   // System & Action Feedback
   const [systemFeedback, setSystemFeedback] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+
+  // Detect Persona & Role for Developer Site gating
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const checkDeveloperRole = () => {
+      const matchRole = document.cookie.match(/(?:^|; )mock_user_role=([^;]*)/);
+      const role = matchRole ? decodeURIComponent(matchRole[1]).toUpperCase() : "";
+      const matchPersona = document.cookie.match(/(?:^|; )mock_persona=([^;]*)/);
+      const persona = matchPersona ? decodeURIComponent(matchPersona[1]) : "";
+
+      let storageRole = "";
+      try {
+        const stored = localStorage.getItem("active_persona");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          storageRole = parsed.role?.toUpperCase() || "";
+        }
+      } catch {}
+
+      const effectiveRole = role || storageRole || (persona === "user-dave-adm" ? "ADMIN" : "MANAGER");
+      setUserRole(effectiveRole);
+
+      // System & Maintenance section is strictly restricted to Developer / Admin (Dave Vance)
+      const isDev = effectiveRole === "ADMIN" || persona === "user-dave-adm";
+      setIsDeveloper(isDev);
+
+      // If non-developer is on the system tab, automatically switch to appearance
+      if (!isDev) {
+        setActiveTab((curr) => (curr === "system" ? "appearance" : curr));
+      }
+    };
+
+    checkDeveloperRole();
+    window.addEventListener("storage", checkDeveloperRole);
+    return () => window.removeEventListener("storage", checkDeveloperRole);
+  }, []);
 
   // Initialize Theme from localStorage / DOM on mount
   useEffect(() => {
@@ -265,11 +306,13 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
             <span>Settings & Preferences</span>
             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-              System v1.0
+              {isDeveloper ? "Developer Console" : "Manager Preferences"}
             </span>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure display themes, order approval thresholds, email alerts, and data maintenance.
+            {isDeveloper
+              ? "Configure display themes, order approval thresholds, email alerts, and data maintenance."
+              : "Configure display themes, order approval thresholds, and email alerts."}
           </p>
         </div>
 
@@ -341,19 +384,25 @@ export default function SettingsPage() {
           <Bell className="w-3.5 h-3.5" />
           <span>Notifications</span>
         </button>
-        <button
-          type="button"
-          data-testid="tab-system"
-          onClick={() => setActiveTab("system")}
-          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-            activeTab === "system"
-              ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
-              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-          }`}
-        >
-          <Database className="w-3.5 h-3.5" />
-          <span>System & Maintenance</span>
-        </button>
+        {/* System & Maintenance — strictly restricted to Developer Site */}
+        {isDeveloper && (
+          <button
+            type="button"
+            data-testid="tab-system"
+            onClick={() => setActiveTab("system")}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              activeTab === "system"
+                ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 text-indigo-500" />
+            <span>System & Maintenance</span>
+            <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+              Dev Only
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Global Feedback Banner */}
@@ -649,10 +698,28 @@ export default function SettingsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 4: SYSTEM & MAINTENANCE                                              */}
+      {/* TAB 4: SYSTEM & MAINTENANCE (DEVELOPER SITE ONLY)                         */}
       {/* ========================================================================= */}
-      {activeTab === "system" && (
+      {activeTab === "system" && isDeveloper && (
         <div className="space-y-6">
+          {/* Developer Site Notice */}
+          <div className="p-3.5 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                <Shield className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="font-bold block">Developer Console Restricted</span>
+                <span className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                  This section is exclusive to the Developer / Admin panel. It controls raw database operations, environment configurations, and JSON backups.
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-200/70 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 shrink-0">
+              Developer Site Only
+            </span>
+          </div>
+
           {/* Environment Status Card */}
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
             <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -740,6 +807,26 @@ export default function SettingsPage() {
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Access Denied Fallback for Non-Developer accessing Tab 4 */}
+      {activeTab === "system" && !isDeveloper && (
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-8 text-center max-w-lg mx-auto my-6 space-y-3">
+          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mx-auto">
+            <Shield className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Developer Site Only</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            The System & Maintenance section is restricted to the Developer / Admin panel. Switch to Dave Administrator in the sidebar to access system backups and database maintenance.
+          </p>
+          <button
+            type="button"
+            onClick={() => setActiveTab("appearance")}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 transition"
+          >
+            Return to Appearance
+          </button>
         </div>
       )}
     </div>

@@ -77,7 +77,7 @@ export default function CatalogPage() {
   return (
     <div className="space-y-6">
       {/* Search, Filter & Sort Controls Bar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Debounced Search Input */}
           <div className="relative flex-1">
@@ -88,7 +88,7 @@ export default function CatalogPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search office supplies (e.g. pens, toner, desk)..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500 transition"
             />
           </div>
 
@@ -99,7 +99,7 @@ export default function CatalogPage() {
               data-testid="catalog-sort-select"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="w-full py-2 px-3 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
             >
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
@@ -116,8 +116,8 @@ export default function CatalogPage() {
             onClick={() => setSelectedCategory("all")}
             className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
               selectedCategory === "all"
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? "bg-slate-900 dark:bg-indigo-600 text-white"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
           >
             All Products
@@ -129,8 +129,8 @@ export default function CatalogPage() {
               onClick={() => setSelectedCategory(cat.slug)}
               className={`px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition-colors ${
                 selectedCategory === cat.slug
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  ? "bg-slate-900 dark:bg-indigo-600 text-white"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               {cat.name}
@@ -143,13 +143,13 @@ export default function CatalogPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-80 rounded-xl bg-slate-200 animate-pulse" />
+            <div key={i} className="h-80 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
-          <PackageX className="w-16 h-16 mx-auto mb-3 text-slate-300" />
-          <h3 className="text-base font-semibold text-slate-700 mb-1">No products found</h3>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
+          <PackageX className="w-16 h-16 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+          <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No products found</h3>
           <p className="text-xs text-slate-400 mb-4">
             The database is currently empty. Click below to load the initial office product catalog.
           </p>
@@ -160,7 +160,7 @@ export default function CatalogPage() {
                 setSearchQuery("");
                 setSelectedCategory("all");
               }}
-              className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800"
+              className="px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition shadow-sm"
             >
               Reset Filters
             </button>
@@ -168,7 +168,7 @@ export default function CatalogPage() {
               type="button"
               onClick={handleSeed}
               disabled={isSeeding}
-              className="px-4 py-2 rounded-lg border border-indigo-300 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition disabled:opacity-50"
+              className="px-4 py-2 rounded-lg border border-indigo-300 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition disabled:opacity-50"
             >
               {isSeeding ? "Seeding Database..." : "Seed Sample Products"}
             </button>

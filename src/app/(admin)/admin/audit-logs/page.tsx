@@ -50,13 +50,13 @@ const ENTITY_TYPES = [
 ];
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  UPDATE: "bg-blue-50 text-blue-700 border-blue-200",
-  DELETE: "bg-rose-50 text-rose-700 border-rose-200",
-  APPROVE: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  REJECT: "bg-amber-50 text-amber-700 border-amber-200",
-  STOCK_ADJUST: "bg-purple-50 text-purple-700 border-purple-200",
-  CONFIG_UPDATE: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  CREATE: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  UPDATE: "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+  DELETE: "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
+  APPROVE: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+  REJECT: "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+  STOCK_ADJUST: "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+  CONFIG_UPDATE: "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
 };
 
 const PAGE_SIZE = 20;
@@ -205,10 +205,10 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Audit Logs</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Audit Logs</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Immutable record of all administrative actions and system changes.
           </p>
         </div>
@@ -219,7 +219,7 @@ export default function AuditLogsPage() {
             data-testid="audit-refresh-btn"
             onClick={() => fetchLogs(currentPage)}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
@@ -228,10 +228,10 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
         <div className="flex items-center gap-2 mb-3">
           <Filter className="w-4 h-4 text-slate-400" />
-          <span className="text-xs font-bold text-slate-700">Filters</span>
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">Filters</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Action Type Filter */}
@@ -243,7 +243,7 @@ export default function AuditLogsPage() {
               data-testid="filter-action"
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              className="w-full py-2 px-3 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
             >
               {ACTION_TYPES.map((action) => (
                 <option key={action} value={action}>
@@ -262,7 +262,7 @@ export default function AuditLogsPage() {
               data-testid="filter-entity"
               value={entityFilter}
               onChange={(e) => setEntityFilter(e.target.value)}
-              className="w-full py-2 px-3 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="w-full py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
             >
               {ENTITY_TYPES.map((entity) => (
                 <option key={entity} value={entity}>
@@ -284,7 +284,7 @@ export default function AuditLogsPage() {
                 data-testid="filter-date-from"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full py-2 pl-9 pr-3 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full py-2 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -301,7 +301,7 @@ export default function AuditLogsPage() {
                 data-testid="filter-date-to"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full py-2 pl-9 pr-3 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="w-full py-2 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
               />
             </div>
           </div>
@@ -317,7 +317,7 @@ export default function AuditLogsPage() {
               setDateFrom("");
               setDateTo("");
             }}
-            className="mt-3 text-xs text-slate-500 hover:text-slate-700 underline transition"
+            className="mt-3 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 underline transition"
           >
             Clear all filters
           </button>
@@ -342,13 +342,13 @@ export default function AuditLogsPage() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 rounded-xl bg-slate-200 animate-pulse" />
+            <div key={i} className="h-16 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
           ))}
         </div>
       ) : logs.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-          <h3 className="text-base font-bold text-slate-700 mb-1">No audit logs found</h3>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-16 text-center">
+          <FileText className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">No audit logs found</h3>
           <p className="text-xs text-slate-400">
             {actionFilter !== "ALL" || entityFilter !== "ALL" || dateFrom || dateTo
               ? "Try adjusting your filters to see more results."
@@ -356,9 +356,9 @@ export default function AuditLogsPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-slate-100 bg-slate-50/50">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60">
             <div className="w-6" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Timestamp
@@ -381,12 +381,12 @@ export default function AuditLogsPage() {
           {logs.map((log, index) => {
             const isExpanded = expandedLogId === log.id;
             const actionColor =
-              ACTION_COLORS[log.action] || "bg-slate-50 text-slate-700 border-slate-200";
+              ACTION_COLORS[log.action] || "bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700";
 
             return (
               <div key={`${log.id}-${index}`} data-testid={`audit-row-${log.id}`}>
                 <div
-                  className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                  className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-3 items-center border-b border-slate-50 dark:border-slate-800/80 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer"
                   onClick={() => toggleExpand(log.id)}
                 >
                   <button type="button" className="text-slate-400 shrink-0">
@@ -397,13 +397,13 @@ export default function AuditLogsPage() {
                     )}
                   </button>
 
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                     {formatDate(log.createdAt)}
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="text-xs font-semibold text-slate-700 truncate">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
                       {log.adminUserName || log.adminUserId}
                     </span>
                   </div>
@@ -414,18 +414,18 @@ export default function AuditLogsPage() {
                     {log.action.replace("_", " ")}
                   </span>
 
-                  <span className="text-xs text-slate-600">
+                  <span className="text-xs text-slate-600 dark:text-slate-300">
                     {log.entityType.replace("_", " ")}
                   </span>
 
-                  <span className="text-xs text-slate-500 font-mono truncate">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">
                     {log.entityId.slice(0, 12)}…
                   </span>
                 </div>
 
                 {/* Expanded Diff View */}
                 {isExpanded && (
-                  <div className="border-b border-slate-100 bg-slate-50/30 px-6 py-4">
+                  <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/40 px-6 py-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
@@ -440,15 +440,15 @@ export default function AuditLogsPage() {
                         <div className="text-xs space-y-1">
                           <p>
                             <span className="text-slate-400">Log ID:</span>{" "}
-                            <span className="font-mono text-slate-600">{log.id}</span>
+                            <span className="font-mono text-slate-600 dark:text-slate-300">{log.id}</span>
                           </p>
                           <p>
                             <span className="text-slate-400">Full Entity ID:</span>{" "}
-                            <span className="font-mono text-slate-600">{log.entityId}</span>
+                            <span className="font-mono text-slate-600 dark:text-slate-300">{log.entityId}</span>
                           </p>
                           <p>
                             <span className="text-slate-400">Timestamp:</span>{" "}
-                            <span className="text-slate-600">
+                            <span className="text-slate-600 dark:text-slate-300">
                               {new Date(log.createdAt).toISOString()}
                             </span>
                           </p>
@@ -475,7 +475,7 @@ export default function AuditLogsPage() {
               data-testid="pagination-prev"
               onClick={() => fetchLogs(currentPage - 1)}
               disabled={currentPage <= 1 || isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               Previous
@@ -485,7 +485,7 @@ export default function AuditLogsPage() {
               data-testid="pagination-next"
               onClick={() => fetchLogs(currentPage + 1)}
               disabled={currentPage >= totalPages || isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Next
               <ChevronRight className="w-3.5 h-3.5" />

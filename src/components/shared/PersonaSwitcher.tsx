@@ -104,13 +104,13 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
   const triggerBase =
     "flex items-center gap-1.5 rounded-lg text-xs font-medium transition cursor-pointer select-none";
   const triggerLight =
-    "px-3 py-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100";
+    "px-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700";
   const triggerDark =
     "px-3 py-2 w-full border border-slate-600 bg-white/5 text-slate-200 hover:bg-white/10";
 
   /* ── dropdown styles per variant ── */
   const dropdownLight =
-    "absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden";
+    "absolute right-0 mt-1.5 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden";
   const dropdownDark =
     "absolute left-0 bottom-full mb-1.5 w-52 bg-slate-800 border border-slate-600 rounded-xl shadow-lg z-50 overflow-hidden";
 
@@ -138,9 +138,8 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
       {/* Dropdown */}
       {open && (
         <div className={variant === "dark" ? dropdownDark : dropdownLight}>
-          <p className={`px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider ${
-            variant === "dark" ? "text-slate-500" : "text-slate-400"
-          }`}>
+          <p className={`px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider ${variant === "dark" ? "text-slate-500" : "text-slate-400 dark:text-slate-400"
+            }`}>
             Switch User
           </p>
           {PERSONAS.map((p) => {
@@ -150,15 +149,14 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
                 key={p.id}
                 type="button"
                 onClick={() => handleSelect(p)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition ${
-                  isActive
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition ${isActive
                     ? variant === "dark"
                       ? "bg-white/10 text-white"
-                      : "bg-slate-50 text-slate-900"
+                      : "bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white"
                     : variant === "dark"
-                    ? "text-slate-300 hover:bg-white/5 hover:text-white"
-                    : "text-slate-700 hover:bg-slate-50"
-                }`}
+                      ? "text-slate-300 hover:bg-white/5 hover:text-white"
+                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                  }`}
               >
                 <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${p.badgeBg}`}>
                   {p.badge}
@@ -170,15 +168,14 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
           })}
 
           {/* Sign Out */}
-          <div className={`border-t mt-1 pt-1 ${variant === "dark" ? "border-slate-600" : "border-slate-100"}`}>
+          <div className={`border-t mt-1 pt-1 ${variant === "dark" ? "border-slate-600" : "border-slate-100 dark:border-slate-700"}`}>
             <button
               type="button"
               onClick={handleSignOut}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition text-xs font-medium ${
-                variant === "dark"
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition text-xs font-medium ${variant === "dark"
                   ? "text-red-400 hover:bg-white/5 hover:text-red-300"
                   : "text-red-500 hover:bg-red-50"
-              }`}
+                }`}
             >
               <LogOut className="w-3.5 h-3.5 shrink-0" />
               Sign out

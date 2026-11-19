@@ -55,6 +55,124 @@
 }
 
 /* ============================================================================
+   GLOBAL DARK MODE COMPATIBILITY
+   Ensures text contrast, cards, inputs, buttons, and tables are legible in dark mode
+   ============================================================================ */
+.dark body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+/* Headings & general text contrast in dark mode */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #f8fafc !important;
+}
+
+/* Explicit slate text classes override */
+.dark .text-slate-900 {
+  color: #f8fafc !important;
+}
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+.dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+/* Card, container, and modal backgrounds */
+.dark .bg-white:not([class*="toggle-knob"]):not([class*="swatch"]):not([data-keep-light]) {
+  background-color: #0f172a !important;
+}
+.dark .bg-slate-50:not([data-keep-light]) {
+  background-color: #1e293b !important;
+}
+.dark .bg-slate-100:not([class*="badge"]):not([data-keep-light]) {
+  background-color: #1e293b !important;
+}
+
+/* Borders and dividers */
+.dark .border-slate-200,
+.dark .border-slate-100 {
+  border-color: #1e293b !important;
+}
+.dark .border-slate-300 {
+  border-color: #334155 !important;
+}
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1e293b !important;
+}
+
+/* Hover backgrounds */
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+.dark .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+.dark .hover\:bg-white:hover {
+  background-color: #1e293b !important;
+}
+
+/* Inputs, textareas, selects */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([data-keep-light]),
+.dark textarea:not([data-keep-light]),
+.dark select:not([data-keep-light]) {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+.dark select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Buttons in dark mode */
+.dark button.bg-slate-900:not([data-keep-color]),
+.dark a.bg-slate-900:not([data-keep-color]) {
+  background-color: rgb(var(--accent-600, 79 70 229)) !important;
+  color: #ffffff !important;
+}
+.dark button.bg-slate-900:hover:not([data-keep-color]),
+.dark a.bg-slate-900:hover:not([data-keep-color]) {
+  background-color: rgb(var(--accent-700, 67 56 202)) !important;
+}
+
+/* Secondary neutral buttons */
+.dark button.border-slate-200,
+.dark a.border-slate-200 {
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Dark mode tables */
+.dark table thead tr {
+  background-color: rgba(30, 41, 59, 0.7) !important;
+  border-color: #1e293b !important;
+}
+.dark table thead th {
+  color: #cbd5e1 !important;
+}
+
+/* ============================================================================
    ACCENT COLOR SYSTEM
    Applied by setting data-accent="<id>" on <html>
    ============================================================================ */

@@ -421,9 +421,9 @@ export default function CatalogPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-slate-200 pb-4">
-        <h1 className="text-2xl font-black text-slate-900">Catalog Management</h1>
-        <p className="text-xs text-slate-500 mt-0.5">
+      <div className="border-b border-slate-200 dark:border-slate-800 pb-4">
+        <h1 className="text-2xl font-black text-slate-900 dark:text-white">Catalog Management</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Manage products, categories, pricing and stock levels.
         </p>
       </div>
@@ -434,8 +434,8 @@ export default function CatalogPage() {
           data-testid="catalog-feedback"
           className={`p-3 rounded-lg text-xs font-medium border ${
             feedback.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-              : "bg-red-50 border-red-200 text-red-800"
+              ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
+              : "bg-red-50 dark:bg-rose-950/60 border-red-200 dark:border-rose-800 text-red-800 dark:text-rose-300"
           }`}
         >
           {feedback.message}
@@ -443,15 +443,15 @@ export default function CatalogPage() {
       )}
 
       {/* Tab Switcher */}
-      <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-lg p-1 w-fit border border-transparent dark:border-slate-800">
         <button
           type="button"
           data-testid="tab-products"
           onClick={() => setActiveTab("products")}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold transition ${
             activeTab === "products"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
+              ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
           }`}
         >
           <PackageIcon className="w-4 h-4" />
@@ -463,8 +463,8 @@ export default function CatalogPage() {
           onClick={() => setActiveTab("categories")}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold transition ${
             activeTab === "categories"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
+              ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -485,14 +485,14 @@ export default function CatalogPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search products..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 transition"
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500 transition"
               />
             </div>
             <select
               data-testid="product-category-filter"
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="py-2 px-3 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 min-w-[180px]"
+              className="py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500 min-w-[180px]"
             >
               <option value="all">All Categories</option>
               {categories.map((cat) => (
@@ -505,7 +505,7 @@ export default function CatalogPage() {
               type="button"
               data-testid="add-product-btn"
               onClick={openAddProduct}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition shrink-0 shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Add Product
@@ -516,13 +516,13 @@ export default function CatalogPage() {
           {isLoadingProducts ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-16 rounded-lg bg-slate-200 animate-pulse" />
+                <div key={i} className="h-16 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
-              <PackageX className="w-16 h-16 mx-auto mb-3 text-slate-300" />
-              <h3 className="text-base font-semibold text-slate-700 mb-1">No products found</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
+              <PackageX className="w-16 h-16 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+              <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No products found</h3>
               <p className="text-xs text-slate-400">
                 {debouncedQuery || filterCategory !== "all"
                   ? "Try adjusting your search or filters."
@@ -530,27 +530,27 @@ export default function CatalogPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm" data-testid="products-table">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-left">
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600">Product</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600">Category</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600">Price</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600">Stock</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600">Status</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 text-right">
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left">
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Product</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Category</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Price</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Stock</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 text-right">
                         Actions
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {products.map((product) => (
                       <tr
                         key={product.id}
                         data-testid={`product-row-${product.id}`}
-                        className="hover:bg-slate-50 transition"
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -558,15 +558,15 @@ export default function CatalogPage() {
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-10 h-10 rounded-lg object-cover bg-slate-100"
+                                className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
                                 <PackageIcon className="w-4 h-4" />
                               </div>
                             )}
                             <div className="min-w-0">
-                              <span className="font-semibold text-slate-900 block truncate max-w-[200px]">
+                              <span className="font-semibold text-slate-900 dark:text-white block truncate max-w-[200px]">
                                 {product.name}
                               </span>
                               {product.sku && (
@@ -577,18 +577,18 @@ export default function CatalogPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-600">
+                        <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                           {getCategoryName(product.categoryId)}
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">
+                        <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
                           {formatCurrency(product.priceCents)}
                         </td>
                         <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center gap-1 text-xs font-semibold ${
                               product.stockQuantity <= (product.lowStockThreshold ?? 5)
-                                ? "text-red-600"
-                                : "text-slate-700"
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-slate-700 dark:text-slate-300"
                             }`}
                           >
                             {product.stockQuantity <= (product.lowStockThreshold ?? 5) && (
@@ -601,8 +601,8 @@ export default function CatalogPage() {
                           <span
                             className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               product.isActive
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-slate-100 text-slate-500"
+                                ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                             }`}
                           >
                             {product.isActive ? "Active" : "Inactive"}
@@ -615,7 +615,7 @@ export default function CatalogPage() {
                               data-testid={`edit-product-${product.id}`}
                               onClick={() => openEditProduct(product)}
                               title="Edit Product"
-                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -624,10 +624,10 @@ export default function CatalogPage() {
                               data-testid={`toggle-product-${product.id}`}
                               onClick={() => toggleProductActive(product)}
                               title={product.isActive ? "Deactivate" : "Activate"}
-                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                             >
                               {product.isActive ? (
-                                <ToggleRight className="w-4 h-4 text-emerald-600" />
+                                <ToggleRight className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                               ) : (
                                 <ToggleLeft className="w-4 h-4 text-slate-400" />
                               )}
@@ -637,7 +637,7 @@ export default function CatalogPage() {
                               data-testid={`stock-adjust-${product.id}`}
                               onClick={() => openStockModal(product)}
                               title="Adjust Stock"
-                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                             >
                               <ArrowUpDown className="w-3.5 h-3.5" />
                             </button>
@@ -646,7 +646,7 @@ export default function CatalogPage() {
                               data-testid={`delete-product-${product.id}`}
                               onClick={() => setProductToDelete(product)}
                               title="Delete Product"
-                              className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
+                              className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -670,7 +670,7 @@ export default function CatalogPage() {
               type="button"
               data-testid="add-category-btn"
               onClick={openAddCategory}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Add Category
@@ -680,47 +680,47 @@ export default function CatalogPage() {
           {isLoadingCategories ? (
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-lg bg-slate-200 animate-pulse" />
+                <div key={i} className="h-14 rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse" />
               ))}
             </div>
           ) : categories.length === 0 ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
-              <Layers className="w-16 h-16 mx-auto mb-3 text-slate-300" />
-              <h3 className="text-base font-semibold text-slate-700 mb-1">No categories</h3>
-              <p className="text-xs">Create your first category to organize products.</p>
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
+              <Layers className="w-16 h-16 mx-auto mb-3 text-slate-300 dark:text-slate-600" />
+              <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No categories</h3>
+              <p className="text-xs text-slate-400">Create your first category to organize products.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
               <table className="w-full text-sm" data-testid="categories-table">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-left">
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600">Name</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600">Slug</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600">Products</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 text-right">
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-left">
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Name</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Slug</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Products</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">Status</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300 text-right">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {categories.map((cat) => (
                     <tr
                       key={cat.id}
                       data-testid={`category-row-${cat.id}`}
-                      className="hover:bg-slate-50 transition"
+                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
                     >
-                      <td className="px-4 py-3 font-semibold text-slate-900">{cat.name}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500 font-mono">{cat.slug}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600">
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">{cat.name}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400 font-mono">{cat.slug}</td>
+                      <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">
                         {getProductCountForCategory(cat.id)}
                       </td>
                       <td className="px-4 py-3">
                         <span
                           className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             cat.isActive
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-100 text-slate-500"
+                              ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                           }`}
                         >
                           {cat.isActive ? "Active" : "Inactive"}
@@ -731,7 +731,7 @@ export default function CatalogPage() {
                           type="button"
                           data-testid={`edit-category-${cat.id}`}
                           onClick={() => openEditCategory(cat)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
+                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -747,19 +747,19 @@ export default function CatalogPage() {
 
       {/* ======== PRODUCT MODAL ======== */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             data-testid="product-modal"
-            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {editingProduct ? "Edit Product" : "Add New Product"}
               </h2>
               <button
                 type="button"
                 onClick={() => setShowProductModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -767,7 +767,7 @@ export default function CatalogPage() {
             <div className="p-5 space-y-4">
               {/* Name */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Product Name *
                 </label>
                 <input
@@ -776,12 +776,12 @@ export default function CatalogPage() {
                   value={productForm.name}
                   onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                   placeholder="e.g. Ballpoint Pen Pack"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Description
                 </label>
                 <textarea
@@ -790,13 +790,13 @@ export default function CatalogPage() {
                   onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                   rows={3}
                   placeholder="Product description..."
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
               {/* Price & Category */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Price (₹) *
                   </label>
                   <input
@@ -811,18 +811,18 @@ export default function CatalogPage() {
                     }
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Category *
                   </label>
                   <select
                     data-testid="product-category-select"
                     value={productForm.categoryId}
                     onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                   >
                     <option value="">Select category</option>
                     {categories.map((cat) => (
@@ -835,7 +835,7 @@ export default function CatalogPage() {
               </div>
               {/* Stock Quantity */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Stock Quantity
                 </label>
                 <input
@@ -849,32 +849,32 @@ export default function CatalogPage() {
                     })
                   }
                   min="0"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
 
               {/* Image Upload Zone */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Product Image
                 </label>
 
                 {/* Preview strip — shown when an image URL exists */}
                 {productForm.imageUrl && (
-                  <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+                  <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                     <img
                       src={productForm.imageUrl}
                       alt="Preview"
-                      className="w-14 h-14 rounded-lg object-cover bg-slate-200 shrink-0"
+                      className="w-14 h-14 rounded-lg object-cover bg-slate-200 dark:bg-slate-700 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-slate-700 truncate">{productForm.imageUrl}</p>
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{productForm.imageUrl}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">Current image</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setProductForm((p) => ({ ...p, imageUrl: "" }))}
-                      className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-red-500 transition shrink-0"
+                      className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-red-500 transition shrink-0"
                       title="Remove image"
                     >
                       <X className="w-4 h-4" />
@@ -895,20 +895,20 @@ export default function CatalogPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className={`relative flex flex-col items-center justify-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
                     isDragOver
-                      ? "border-indigo-400 bg-indigo-50"
-                      : "border-slate-200 bg-slate-50 hover:border-slate-400 hover:bg-slate-100"
+                      ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-950/40"
+                      : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
                   }`}
                 >
                   {isUploading ? (
                     <>
                       <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                      <p className="text-xs text-slate-500">Uploading…</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Uploading…</p>
                     </>
                   ) : (
                     <>
                       <UploadCloud className="w-6 h-6 text-slate-400" />
-                      <p className="text-xs font-medium text-slate-600">
-                        Drop image here or <span className="text-indigo-600 underline">browse</span>
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        Drop image here or <span className="text-indigo-600 dark:text-indigo-400 underline">browse</span>
                       </p>
                       <p className="text-[10px] text-slate-400">JPEG, PNG, WebP, GIF · Max 5 MB</p>
                     </>
@@ -927,7 +927,7 @@ export default function CatalogPage() {
                 </div>
 
                 {uploadError && (
-                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                  <p className="mt-1.5 text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3 shrink-0" />
                     {uploadError}
                   </p>
@@ -941,16 +941,16 @@ export default function CatalogPage() {
                     value={productForm.imageUrl}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
                     placeholder="Or paste an image URL / /uploads/filename.jpg"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-indigo-500"
                   />
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowProductModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
@@ -959,7 +959,7 @@ export default function CatalogPage() {
                 data-testid="product-submit-btn"
                 onClick={handleProductSubmit}
                 disabled={isSubmitting || !productForm.name.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition disabled:opacity-50 shadow-sm"
               >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editingProduct ? "Save Changes" : "Create Product"}
@@ -971,25 +971,25 @@ export default function CatalogPage() {
 
       {/* ======== STOCK ADJUSTMENT MODAL ======== */}
       {showStockModal && stockProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             data-testid="stock-modal"
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            className="bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md"
           >
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900">Adjust Stock</h2>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Adjust Stock</h2>
               <button
                 type="button"
                 onClick={() => setShowStockModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <span className="text-xs text-slate-500 block">Product</span>
-                <span className="font-semibold text-sm text-slate-900">{stockProduct.name}</span>
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 rounded-lg">
+                <span className="text-xs text-slate-500 dark:text-slate-400 block">Product</span>
+                <span className="font-semibold text-sm text-slate-900 dark:text-white">{stockProduct.name}</span>
                 <span className="text-xs text-slate-400 block">
                   Current stock: {stockProduct.stockQuantity}
                 </span>
@@ -1004,8 +1004,8 @@ export default function CatalogPage() {
                   }
                   className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
                     stockAdj.mode === "absolute"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-slate-900 dark:bg-indigo-600 text-white"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   Set Absolute
@@ -1015,8 +1015,8 @@ export default function CatalogPage() {
                   onClick={() => setStockAdj({ ...stockAdj, mode: "delta", value: 0 })}
                   className={`flex-1 py-2 rounded-lg text-xs font-semibold transition ${
                     stockAdj.mode === "delta"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600"
+                      ? "bg-slate-900 dark:bg-indigo-600 text-white"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
                   +/- Delta
@@ -1024,7 +1024,7 @@ export default function CatalogPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   {stockAdj.mode === "absolute" ? "New Quantity" : "Delta (+/-)"}
                 </label>
                 <input
@@ -1034,12 +1034,12 @@ export default function CatalogPage() {
                   onChange={(e) =>
                     setStockAdj({ ...stockAdj, value: parseInt(e.target.value || "0", 10) })
                   }
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Reason *
                 </label>
                 <input
@@ -1048,15 +1048,15 @@ export default function CatalogPage() {
                   value={stockAdj.reason}
                   onChange={(e) => setStockAdj({ ...stockAdj, reason: e.target.value })}
                   placeholder="e.g. Restock delivery, Inventory correction"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowStockModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
@@ -1065,7 +1065,7 @@ export default function CatalogPage() {
                 data-testid="stock-submit-btn"
                 onClick={handleStockSubmit}
                 disabled={isSubmitting || !stockAdj.reason.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition disabled:opacity-50 shadow-sm"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1081,26 +1081,26 @@ export default function CatalogPage() {
 
       {/* ======== CATEGORY MODAL ======== */}
       {showCategoryModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             data-testid="category-modal"
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+            className="bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md"
           >
-            <div className="flex items-center justify-between p-5 border-b border-slate-200">
-              <h2 className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-800">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {editingCategory ? "Edit Category" : "Add New Category"}
               </h2>
               <button
                 type="button"
                 onClick={() => setShowCategoryModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-900"
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Category Name *
                 </label>
                 <input
@@ -1116,18 +1116,18 @@ export default function CatalogPage() {
                     });
                   }}
                   placeholder="e.g. Office Furniture"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Slug *</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Slug *</label>
                 <input
                   type="text"
                   data-testid="category-slug-input"
                   value={categoryForm.slug}
                   onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
                   placeholder="office-furniture"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-indigo-500"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -1137,18 +1137,18 @@ export default function CatalogPage() {
                   data-testid="category-active-checkbox"
                   checked={categoryForm.isActive}
                   onChange={(e) => setCategoryForm({ ...categoryForm, isActive: e.target.checked })}
-                  className="rounded border-slate-300"
+                  className="rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-indigo-600"
                 />
-                <label htmlFor="cat-active" className="text-xs font-medium text-slate-700">
+                <label htmlFor="cat-active" className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   Active
                 </label>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowCategoryModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>
@@ -1157,7 +1157,7 @@ export default function CatalogPage() {
                 data-testid="category-submit-btn"
                 onClick={handleCategorySubmit}
                 disabled={isSubmitting || !categoryForm.name.trim() || !categoryForm.slug.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-indigo-500 transition disabled:opacity-50 shadow-sm"
               >
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editingCategory ? "Save Changes" : "Create Category"}
@@ -1169,19 +1169,19 @@ export default function CatalogPage() {
 
       {/* ======== DELETE CONFIRMATION MODAL ======== */}
       {productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div
             data-testid="delete-product-modal"
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            className="bg-white dark:bg-slate-900 border border-transparent dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+              <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-slate-900 mb-1">Delete Product</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Are you sure you want to delete <span className="font-semibold text-slate-900">&ldquo;{productToDelete.name}&rdquo;</span>? This will permanently remove the item from the catalog and log this deletion to audit logs.
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Delete Product</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  Are you sure you want to delete <span className="font-semibold text-slate-900 dark:text-white">&ldquo;{productToDelete.name}&rdquo;</span>? This will permanently remove the item from the catalog and log this deletion to audit logs.
                 </p>
                 {productToDelete.sku && (
                   <p className="text-[11px] font-mono text-slate-400 mt-2">
@@ -1190,12 +1190,12 @@ export default function CatalogPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 bg-slate-50 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setProductToDelete(null)}
                 disabled={isSubmitting}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-white transition"
+                className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>

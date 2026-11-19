@@ -216,10 +216,10 @@ export default function ApprovalsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Manager Approvals Portal</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Manager Approvals Portal</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Review department purchase requisitions and inspect department-wide order history.
           </p>
         </div>
@@ -229,7 +229,7 @@ export default function ApprovalsPage() {
             data-testid="approvals-refresh-btn"
             onClick={() => (activeTab === "pending" ? fetchPendingOrders(true) : fetchDepartmentHistory(true))}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
@@ -238,21 +238,21 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
         <button
           type="button"
           onClick={() => setActiveTab("pending")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
             activeTab === "pending"
-              ? "bg-slate-900 text-white shadow"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              ? "bg-slate-900 dark:bg-indigo-600 text-white shadow"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
           }`}
         >
           <ClipboardCheck className="w-4 h-4" />
           <span>Pending Approvals</span>
           <span
             className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-              activeTab === "pending" ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-700"
+              activeTab === "pending" ? "bg-slate-700 dark:bg-indigo-700 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
             }`}
           >
             {orders.length}
@@ -264,15 +264,15 @@ export default function ApprovalsPage() {
           onClick={() => setActiveTab("history")}
           className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
             activeTab === "history"
-              ? "bg-slate-900 text-white shadow"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              ? "bg-slate-900 dark:bg-indigo-600 text-white shadow"
+              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
           }`}
         >
           <History className="w-4 h-4" />
           <span>Department Order History</span>
           <span
             className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-              activeTab === "history" ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-700"
+              activeTab === "history" ? "bg-slate-700 dark:bg-indigo-700 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
             }`}
           >
             {historyOrders.length}
@@ -284,14 +284,14 @@ export default function ApprovalsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl bg-slate-200 animate-pulse" />
+            <div key={i} className="h-24 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
           ))}
         </div>
       ) : currentList.length === 0 ? (
         /* Empty State */
-        <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
-          <Inbox className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-          <h3 className="text-base font-bold text-slate-700 mb-1">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-16 text-center">
+          <Inbox className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">
             {activeTab === "pending" ? "All caught up!" : "No department orders yet"}
           </h3>
           <p className="text-xs text-slate-400">
@@ -311,7 +311,7 @@ export default function ApprovalsPage() {
               <div
                 key={order.id}
                 data-testid={`approval-card-${order.id}`}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all hover:border-slate-300"
+                className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden transition-all hover:border-slate-300 dark:hover:border-slate-700"
               >
                 <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* Order Info */}
@@ -319,7 +319,7 @@ export default function ApprovalsPage() {
                     <button
                       type="button"
                       onClick={() => toggleExpand(order.id)}
-                      className="text-slate-400 hover:text-slate-600 p-1"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
                       aria-label={isExpanded ? "Collapse details" : "Expand details"}
                     >
                       {isExpanded ? (
@@ -331,7 +331,7 @@ export default function ApprovalsPage() {
 
                     {/* Order Reference */}
                     <div>
-                      <span className="font-mono text-xs font-bold text-slate-900 block">
+                      <span className="font-mono text-xs font-bold text-slate-900 dark:text-white block">
                         {order.orderNumber || `#${order.id.slice(0, 8)}`}
                       </span>
                       <span className="text-[10px] text-slate-400 font-mono">
@@ -343,7 +343,7 @@ export default function ApprovalsPage() {
                     <div className="flex items-center gap-1.5">
                       <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <div>
-                        <span className="text-xs font-semibold text-slate-700 block">
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
                           {order.userName || order.userId}
                         </span>
                         {order.userEmail && (
@@ -355,7 +355,7 @@ export default function ApprovalsPage() {
                     {/* Department */}
                     <div className="flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-slate-600 dark:text-slate-300">
                         {order.departmentName || order.departmentId}
                       </span>
                     </div>
@@ -366,7 +366,7 @@ export default function ApprovalsPage() {
                     {/* Total */}
                     <div>
                       <span className="text-[10px] text-slate-400 font-medium block">Total</span>
-                      <span className="text-sm font-black text-slate-900">
+                      <span className="text-sm font-black text-slate-900 dark:text-white">
                         {formatCurrency(order.totalCents)}
                       </span>
                     </div>
@@ -374,7 +374,7 @@ export default function ApprovalsPage() {
                     {/* Date */}
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
                         {formatDate(order.createdAt)}
                       </span>
                     </div>
@@ -402,7 +402,7 @@ export default function ApprovalsPage() {
                         data-testid={`reject-btn-${order.id}`}
                         onClick={() => openRejectModal(order)}
                         disabled={isProcessing}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-600 text-xs font-bold hover:bg-rose-50 transition disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 text-xs font-bold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition disabled:opacity-50"
                       >
                         <XCircle className="w-3.5 h-3.5" />
                         Reject
@@ -413,7 +413,7 @@ export default function ApprovalsPage() {
 
                 {/* Expanded Order Items */}
                 {isExpanded && (
-                  <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3">
+                  <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 px-4 py-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
                       Order Items ({order.items?.length || 0})
                     </h4>
@@ -422,20 +422,20 @@ export default function ApprovalsPage() {
                         {order.items.map((item) => (
                           <div
                             key={item.id}
-                            className="flex items-center gap-3 bg-white rounded-lg border border-slate-100 p-3"
+                            className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 p-3"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
                               <Package className="w-4 h-4 text-slate-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <span className="text-xs font-semibold text-slate-900 block truncate">
+                              <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">
                                 {item.productName || item.productId}
                               </span>
                               <span className="text-[10px] text-slate-400">
                                 Qty: {item.quantity} × {formatCurrency(item.unitPriceCents)}
                               </span>
                             </div>
-                            <span className="text-xs font-bold text-slate-900">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
                               {formatCurrency(item.quantity * item.unitPriceCents)}
                             </span>
                           </div>
@@ -454,15 +454,15 @@ export default function ApprovalsPage() {
 
       {/* Modal for Entering Rejection Reason */}
       {rejectingOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 max-w-md w-full shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600">
+                <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
                   <XCircle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Reject Order Requisition</h3>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">Reject Order Requisition</h3>
                   <p className="text-xs text-slate-400">
                     Order {rejectingOrder.orderNumber || `#${rejectingOrder.id.slice(0, 8)}`}
                   </p>
@@ -471,14 +471,14 @@ export default function ApprovalsPage() {
               <button
                 type="button"
                 onClick={() => setRejectingOrder(null)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1"
               >
                 ✕
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Rejection Reason / Comment <span className="text-rose-500">*</span>
               </label>
               <textarea
@@ -489,19 +489,19 @@ export default function ApprovalsPage() {
                 }}
                 placeholder="Explain why this requisition is being rejected (required by policy)..."
                 rows={3}
-                className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                className="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
                 autoFocus
               />
               {rejectionError && (
-                <p className="text-xs text-rose-600 mt-1 font-medium">{rejectionError}</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-medium">{rejectionError}</p>
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setRejectingOrder(null)}
-                className="px-3.5 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+                className="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
               >
                 Cancel
               </button>

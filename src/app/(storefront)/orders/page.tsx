@@ -72,7 +72,7 @@ export default function OrdersPage() {
         return (
           <span
             data-testid="status-chip-pending"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
           >
             <Clock className="w-3.5 h-3.5" />
             Pending Approval
@@ -82,7 +82,7 @@ export default function OrdersPage() {
         return (
           <span
             data-testid="status-chip-approved"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
             Approved
@@ -92,7 +92,7 @@ export default function OrdersPage() {
         return (
           <span
             data-testid="status-chip-rejected"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
           >
             <XCircle className="w-3.5 h-3.5" />
             Rejected
@@ -102,7 +102,7 @@ export default function OrdersPage() {
         return (
           <span
             data-testid="status-chip-fulfilled"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
           >
             <Truck className="w-3.5 h-3.5" />
             Fulfilled
@@ -112,7 +112,7 @@ export default function OrdersPage() {
         return (
           <span
             data-testid="status-chip-cancelled"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
           >
             <Ban className="w-3.5 h-3.5" />
             Cancelled
@@ -123,17 +123,17 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Personal Order History</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Personal Order History</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Track lifecycle approval states and cancel pending supply requests.
           </p>
         </div>
       </div>
 
       {feedbackMessage && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs text-emerald-800 dark:text-emerald-300 font-medium">
           {feedbackMessage}
         </div>
       )}
@@ -144,9 +144,9 @@ export default function OrdersPage() {
           <p className="text-xs">Loading order history...</p>
         </div>
       ) : orders.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
-          <Package className="w-16 h-16 mx-auto mb-2 text-slate-300" />
-          <h3 className="text-base font-semibold text-slate-700 mb-1">No orders found</h3>
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
+          <Package className="w-16 h-16 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+          <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No orders found</h3>
           <p className="text-xs text-slate-400">You haven&apos;t placed any supply requisitions yet.</p>
         </div>
       ) : (
@@ -159,12 +159,12 @@ export default function OrdersPage() {
               <div
                 key={order.id}
                 data-testid={`order-card-${order.id}`}
-                className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3"
+                className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold text-sm text-slate-900">
+                      <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
                         {order.orderNumber || order.id}
                       </span>
                       {getStatusBadge(order.status)}
@@ -183,7 +183,7 @@ export default function OrdersPage() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <span className="text-xs text-slate-400 block">Total</span>
-                      <span className="text-base font-black text-slate-900">
+                      <span className="text-base font-black text-slate-900 dark:text-white">
                         {formatCurrency(order.totalCents)}
                       </span>
                     </div>
@@ -194,7 +194,7 @@ export default function OrdersPage() {
                         data-testid="cancel-order-btn"
                         onClick={() => handleCancelOrder(order.id)}
                         disabled={cancellingId === order.id}
-                        className="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+                        className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-rose-800/80 text-xs font-semibold text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/40 transition"
                       >
                         {cancellingId === order.id ? "Cancelling..." : "Cancel Order"}
                       </button>
@@ -206,9 +206,9 @@ export default function OrdersPage() {
                 {isRejected && order.rejectionReason && (
                   <div
                     data-testid="rejection-reason-banner"
-                    className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 flex items-start gap-2"
+                    className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-lg text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2"
                   >
-                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                     <div>
                       <span className="font-semibold block">Manager Rejection Comment:</span>
                       <p className="mt-0.5">{order.rejectionReason}</p>

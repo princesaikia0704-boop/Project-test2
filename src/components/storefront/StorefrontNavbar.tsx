@@ -34,12 +34,12 @@ export const StorefrontNavbar: React.FC = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo & Store Name */}
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2.5 font-black text-slate-900 text-lg">
-              <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+            <Link href="/" className="flex items-center gap-2.5 font-black text-slate-900 dark:text-white text-lg">
+              <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-lg flex items-center justify-center text-white">
                 <Briefcase className="w-5 h-5" />
               </div>
               <div className="flex flex-col">
@@ -60,8 +60,8 @@ export const StorefrontNavbar: React.FC = () => {
                     href={link.href}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                       isActive
-                        ? "bg-slate-100 text-slate-900"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
+                        : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
                     {link.label}
@@ -81,14 +81,14 @@ export const StorefrontNavbar: React.FC = () => {
               type="button"
               data-testid="cart-trigger-btn"
               onClick={openDrawer}
-              className="relative p-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition"
+              className="relative p-2 rounded-lg bg-slate-900 dark:bg-indigo-600 text-white hover:bg-slate-800 dark:hover:bg-indigo-500 transition shadow-sm"
               aria-label="Open Cart"
             >
               <ShoppingBag className="w-5 h-5" />
               {totalItemCount > 0 && (
                 <span
                   data-testid="cart-badge-count"
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white shadow-sm"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-sm"
                 >
                   {totalItemCount}
                 </span>

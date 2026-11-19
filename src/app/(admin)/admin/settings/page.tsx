@@ -120,7 +120,7 @@ export default function SettingsPage() {
   // Initialize Theme from localStorage / DOM on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedTheme = (localStorage.getItem("app_theme") as ThemeMode) || "system";
+    const savedTheme = (localStorage.getItem("app_theme") as ThemeMode) || "light";
     setTheme(savedTheme);
 
     const savedAccent = localStorage.getItem("app_accent") || "indigo";

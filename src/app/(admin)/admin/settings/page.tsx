@@ -216,6 +216,20 @@ export default function SettingsPage() {
     localStorage.setItem("pref_weekly_digest", String(next));
   };
 
+  // Helper to apply dynamic brand color
+  const applyBrandColor = (hex?: string) => {
+    if (!hex || !/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex)) return;
+    const clean = hex.replace("#", "");
+    const bigint = parseInt(clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean, 16);
+    if (!isNaN(bigint)) {
+      const rgb = `${(bigint >> 16) & 255} ${(bigint >> 8) & 255} ${bigint & 255}`;
+      document.documentElement.style.setProperty("--accent-500", rgb);
+      document.documentElement.style.setProperty("--accent-600", rgb);
+      document.documentElement.style.setProperty("--accent-700", rgb);
+      document.documentElement.setAttribute("data-accent", "custom");
+    }
+  };
+
   // Fetch Store Config
   const fetchConfig = useCallback(async () => {
     setIsLoading(true);
@@ -223,7 +237,18 @@ export default function SettingsPage() {
       const res = await fetch("/api/admin/store-config");
       if (res.ok) {
         const data = await res.json();
-        setConfig(data.config || null);
+        const conf = data.config || null;
+        setConfig(conf);
+        if (conf?.company_name) {
+          localStorage.setItem("app_company_name", conf.company_name);
+        }
+        if (conf?.logo_url !== undefined) {
+          localStorage.setItem("app_logo_url", conf.logo_url);
+        }
+        if (conf?.primary_color) {
+          localStorage.setItem("app_primary_color", conf.primary_color);
+          applyBrandColor(conf.primary_color);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch store config", err);
@@ -249,8 +274,24 @@ export default function SettingsPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setConfig(data.config || config);
+        const updated = data.config || config;
+        setConfig(updated);
         setSaveStatus("success");
+
+        // Sync branding to localStorage and dispatch event for immediate live UI update
+        if (updates.company_name) {
+          localStorage.setItem("app_company_name", updates.company_name);
+          document.title = `${updates.company_name} — Corporate Supply Management`;
+        }
+        if (updates.primary_color) {
+          localStorage.setItem("app_primary_color", updates.primary_color);
+          applyBrandColor(updates.primary_color);
+        }
+        if (updates.logo_url !== undefined) {
+          localStorage.setItem("app_logo_url", updates.logo_url);
+        }
+        window.dispatchEvent(new Event("storage"));
+
         setTimeout(() => setSaveStatus("idle"), 3500);
       } else {
         setSaveStatus("error");

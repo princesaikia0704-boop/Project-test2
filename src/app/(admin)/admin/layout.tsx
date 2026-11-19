@@ -26,24 +26,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [companyName, setCompanyName] = useState<string>("Office Store");
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
-  // Fetch pending approvals count for badge
+  // Fetch pending approvals count for badge and branding
   useEffect(() => {
-    const fetchPending = async () => {
+    // Initial branding from localStorage
+    const savedName = localStorage.getItem("app_company_name");
+    if (savedName) setCompanyName(savedName);
+    const savedLogo = localStorage.getItem("app_logo_url");
+    if (savedLogo) setLogoUrl(savedLogo);
+
+    const fetchConfigAndApprovals = async () => {
       try {
-        const res = await fetch("/api/admin/approvals");
-        if (res.ok) {
-          const data = await res.json();
+        const [apprRes, confRes] = await Promise.all([
+          fetch("/api/admin/approvals"),
+          fetch("/api/admin/store-config"),
+        ]);
+
+        if (apprRes.ok) {
+          const data = await apprRes.json();
           setPendingCount(data.count || 0);
         }
+
+        if (confRes.ok) {
+          const confData = await confRes.json();
+          if (confData?.config?.company_name) {
+            setCompanyName(confData.config.company_name);
+            localStorage.setItem("app_company_name", confData.config.company_name);
+          }
+          if (confData?.config?.logo_url !== undefined) {
+            setLogoUrl(confData.config.logo_url);
+            localStorage.setItem("app_logo_url", confData.config.logo_url);
+          }
+        }
       } catch {
-        // Silently fail badge count
+        // Silently fail polling
       }
     };
 
-    fetchPending();
-    const interval = setInterval(fetchPending, 30_000);
-    return () => clearInterval(interval);
+    fetchConfigAndApprovals();
+    const interval = setInterval(fetchConfigAndApprovals, 30_000);
+
+    const handleStorage = () => {
+      const n = localStorage.getItem("app_company_name");
+      if (n) setCompanyName(n);
+      const l = localStorage.getItem("app_logo_url");
+      if (l !== null) setLogoUrl(l);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const navItems: NavItem[] = [
@@ -91,12 +127,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {/* Sidebar Header */}
         <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-700 shrink-0">
-          <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center shrink-0">
-            <Briefcase className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+            {logoUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={logoUrl}
+                alt={companyName}
+                className="w-full h-full object-contain p-1"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <Briefcase className="w-5 h-5 text-white" />
+            )}
           </div>
           {!collapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="font-black text-sm leading-tight truncate">Office Store</span>
+              <span className="font-black text-sm leading-tight truncate">{companyName}</span>
               <span className="text-[10px] text-slate-400 font-medium tracking-wide">
                 Admin Panel
               </span>

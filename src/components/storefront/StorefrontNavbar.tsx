@@ -19,11 +19,44 @@ export const StorefrontNavbar: React.FC = () => {
   const { totalItemCount, isDrawerOpen, openDrawer, closeDrawer } = useCart();
   // kept for potential future use (e.g. showing budget for current persona)
   const [_persona, setPersona] = useState<Persona>(PERSONAS[0]);
+  const [companyName, setCompanyName] = useState<string>("Office Store");
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
     const id = getCookieValue("mock_persona");
     const found = PERSONAS.find((p) => p.id === id);
     if (found) setPersona(found);
+
+    // Load initial branding from localStorage
+    const savedName = localStorage.getItem("app_company_name");
+    if (savedName) setCompanyName(savedName);
+    const savedLogo = localStorage.getItem("app_logo_url");
+    if (savedLogo) setLogoUrl(savedLogo);
+
+    // Fetch latest branding from store-config API
+    fetch("/api/admin/store-config")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.config?.company_name) {
+          setCompanyName(data.config.company_name);
+          localStorage.setItem("app_company_name", data.config.company_name);
+        }
+        if (data?.config?.logo_url !== undefined) {
+          setLogoUrl(data.config.logo_url);
+          localStorage.setItem("app_logo_url", data.config.logo_url);
+        }
+      })
+      .catch(() => {});
+
+    const handleStorageUpdate = () => {
+      const n = localStorage.getItem("app_company_name");
+      if (n) setCompanyName(n);
+      const l = localStorage.getItem("app_logo_url");
+      if (l !== null) setLogoUrl(l);
+    };
+
+    window.addEventListener("storage", handleStorageUpdate);
+    return () => window.removeEventListener("storage", handleStorageUpdate);
   }, [pathname]);
 
   const navLinks = [
@@ -39,11 +72,23 @@ export const StorefrontNavbar: React.FC = () => {
           {/* Logo & Store Name */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2.5 font-black text-slate-900 dark:text-white text-lg">
-              <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-lg flex items-center justify-center text-white">
-                <Briefcase className="w-5 h-5" />
+              <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-lg flex items-center justify-center text-white overflow-hidden shrink-0">
+                {logoUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={logoUrl}
+                    alt={companyName}
+                    className="w-full h-full object-contain p-1"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <Briefcase className="w-5 h-5" />
+                )}
               </div>
-              <div className="flex flex-col">
-                <span className="leading-tight">Office Store</span>
+              <div className="flex flex-col min-w-0">
+                <span className="leading-tight truncate">{companyName}</span>
                 <span className="text-[10px] text-slate-400 font-medium tracking-wide">
                   Corporate Supplies
                 </span>

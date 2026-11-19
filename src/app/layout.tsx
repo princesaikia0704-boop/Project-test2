@@ -30,8 +30,26 @@ export default function RootLayout({
                 } else {
                   document.documentElement.classList.remove('dark');
                 }
-                var accent = localStorage.getItem('app_accent') || 'indigo';
-                document.documentElement.setAttribute('data-accent', accent);
+                var brandColor = localStorage.getItem('app_primary_color');
+                if (brandColor && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(brandColor)) {
+                  var clean = brandColor.replace('#', '');
+                  if (clean.length === 3) clean = clean.split('').map(function(c) { return c + c; }).join('');
+                  var bi = parseInt(clean, 16);
+                  if (!isNaN(bi)) {
+                    var rgb = ((bi >> 16) & 255) + ' ' + ((bi >> 8) & 255) + ' ' + (bi & 255);
+                    document.documentElement.style.setProperty('--accent-500', rgb);
+                    document.documentElement.style.setProperty('--accent-600', rgb);
+                    document.documentElement.style.setProperty('--accent-700', rgb);
+                    document.documentElement.setAttribute('data-accent', 'custom');
+                  }
+                } else {
+                  var accent = localStorage.getItem('app_accent') || 'indigo';
+                  document.documentElement.setAttribute('data-accent', accent);
+                }
+                var brandName = localStorage.getItem('app_company_name');
+                if (brandName) {
+                  document.title = brandName + ' — Corporate Supply Management';
+                }
                 var compact = localStorage.getItem('app_compact');
                 if (compact === 'true') {
                   document.documentElement.setAttribute('data-compact', 'true');

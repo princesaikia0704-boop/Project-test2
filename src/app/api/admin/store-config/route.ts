@@ -71,7 +71,7 @@ export const GET = withApiReliability(
       { status: 200 }
     );
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN", "MANAGER", "EMPLOYEE"] }
 );
 
 async function handleUpdateConfig(req: NextRequest) {

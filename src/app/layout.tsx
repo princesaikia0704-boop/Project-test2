@@ -29,6 +29,14 @@ export default function RootLayout({
                 } else {
                   document.documentElement.classList.remove('dark');
                 }
+                var accent = localStorage.getItem('app_accent') || 'indigo';
+                document.documentElement.setAttribute('data-accent', accent);
+                var compact = localStorage.getItem('app_compact');
+                if (compact === 'true') {
+                  document.documentElement.setAttribute('data-compact', 'true');
+                } else {
+                  document.documentElement.removeAttribute('data-compact');
+                }
               } catch (_) {}
             })();`,
           }}

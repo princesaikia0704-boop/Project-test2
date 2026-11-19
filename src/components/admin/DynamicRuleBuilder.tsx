@@ -15,8 +15,26 @@ import {
   ImageIcon,
   RotateCcw,
   Save,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const BRAND_COLOR_PALETTE = [
+  { name: "Navy", hex: "#0F172A" },
+  { name: "Slate", hex: "#334155" },
+  { name: "Indigo", hex: "#4F46E5" },
+  { name: "Blue", hex: "#2563EB" },
+  { name: "Sky", hex: "#0284C7" },
+  { name: "Teal", hex: "#0D9488" },
+  { name: "Emerald", hex: "#059669" },
+  { name: "Forest", hex: "#16A34A" },
+  { name: "Amber", hex: "#D97706" },
+  { name: "Orange", hex: "#EA580C" },
+  { name: "Rose", hex: "#E11D48" },
+  { name: "Purple", hex: "#7C3AED" },
+  { name: "Pink", hex: "#DB2777" },
+  { name: "Black", hex: "#18181B" },
+];
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface StoreConfig {
@@ -230,45 +248,97 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
         </div>
 
         {/* Primary Brand Color */}
-        <div className="space-y-1.5">
-          <label
-            htmlFor="primary-color"
-            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            <Palette className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-            Primary Brand Color
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              data-testid="rule-builder-primary-color"
-              id="primary-color"
-              type="text"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-              maxLength={7}
-              className={cn(
-                "flex-1 px-4 py-2.5 rounded-lg border text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-mono focus:outline-none focus:ring-2 focus:border-transparent transition-shadow",
-                validationErrors.primaryColor
-                  ? "border-red-300 focus:ring-red-400"
-                  : "border-slate-300 dark:border-slate-700 focus:ring-slate-500"
-              )}
-              placeholder="#0F172A"
-            />
-            {/* Color Preview Square */}
-            <div
-              data-testid="rule-builder-color-preview"
-              className="w-11 h-11 rounded-lg border-2 border-slate-200 dark:border-slate-700 shrink-0 shadow-inner"
-              style={{
-                backgroundColor: isValidHexColor(primaryColor.trim())
-                  ? primaryColor.trim()
-                  : "#E2E8F0",
-              }}
-              title={
-                isValidHexColor(primaryColor.trim())
-                  ? primaryColor.trim()
-                  : "Invalid color"
-              }
-            />
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="primary-color"
+              className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              <Palette className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              Primary Brand Color
+            </label>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+              Selected: <strong className="text-slate-900 dark:text-slate-100">{primaryColor.toUpperCase()}</strong>
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Pick a corporate brand color from the visual grid or use the visual color wheel:
+          </p>
+
+          {/* Visual Color Grid Palette */}
+          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/60 space-y-3">
+            <div className="grid grid-cols-7 gap-2">
+              {BRAND_COLOR_PALETTE.map((c) => {
+                const isSelected = primaryColor.trim().toUpperCase() === c.hex.toUpperCase();
+                return (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    onClick={() => setPrimaryColor(c.hex)}
+                    title={`${c.name} (${c.hex})`}
+                    className={`group relative h-9 rounded-lg transition-all flex items-center justify-center shadow-sm ${
+                      isSelected
+                        ? "ring-2 ring-offset-2 ring-slate-900 dark:ring-white scale-105 z-10"
+                        : "hover:scale-105 opacity-90 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: c.hex }}
+                  >
+                    {isSelected && (
+                      <Check className="w-4 h-4 text-white drop-shadow-md stroke-[2.5]" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Visual Color Picker Swatch & Manual Input */}
+            <div className="flex items-center gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-700/60">
+              <label
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm shrink-0"
+              >
+                <input
+                  type="color"
+                  value={isValidHexColor(primaryColor.trim()) ? primaryColor.trim() : "#0F172A"}
+                  onChange={(e) => setPrimaryColor(e.target.value.toUpperCase())}
+                  className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <span>Visual Color Picker</span>
+              </label>
+
+              <div className="relative flex-1">
+                <input
+                  data-testid="rule-builder-primary-color"
+                  id="primary-color"
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  maxLength={7}
+                  className={cn(
+                    "w-full px-3 py-1.5 rounded-lg border text-xs text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 font-mono focus:outline-none focus:ring-1 transition-shadow",
+                    validationErrors.primaryColor
+                      ? "border-red-300 focus:ring-red-400"
+                      : "border-slate-300 dark:border-slate-700 focus:ring-slate-500"
+                  )}
+                  placeholder="#0F172A"
+                />
+              </div>
+
+              {/* Color Preview Square */}
+              <div
+                data-testid="rule-builder-color-preview"
+                className="w-8 h-8 rounded-lg border border-slate-300 dark:border-slate-600 shrink-0 shadow-inner"
+                style={{
+                  backgroundColor: isValidHexColor(primaryColor.trim())
+                    ? primaryColor.trim()
+                    : "#E2E8F0",
+                }}
+                title={
+                  isValidHexColor(primaryColor.trim())
+                    ? primaryColor.trim()
+                    : "Invalid color"
+                }
+              />
+            </div>
           </div>
           {validationErrors.primaryColor && (
             <p className="text-xs text-red-600">{validationErrors.primaryColor}</p>

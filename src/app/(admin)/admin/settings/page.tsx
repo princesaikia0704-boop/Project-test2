@@ -32,11 +32,18 @@ type SettingsTab = "appearance" | "rules" | "notifications" | "system";
 type ThemeMode = "light" | "dark" | "system";
 
 const ACCENT_COLORS = [
-  { id: "indigo", name: "Indigo", bg: "bg-indigo-600", border: "border-indigo-500", text: "text-indigo-600" },
-  { id: "blue", name: "Sky Blue", bg: "bg-sky-500", border: "border-sky-400", text: "text-sky-500" },
-  { id: "emerald", name: "Emerald", bg: "bg-emerald-600", border: "border-emerald-500", text: "text-emerald-600" },
-  { id: "purple", name: "Purple", bg: "bg-purple-600", border: "border-purple-500", text: "text-purple-600" },
-  { id: "rose", name: "Rose", bg: "bg-rose-600", border: "border-rose-500", text: "text-rose-600" },
+  { id: "indigo", name: "Indigo", hex: "#4F46E5", bg: "bg-indigo-600" },
+  { id: "blue", name: "Sky Blue", hex: "#0284C7", bg: "bg-sky-500" },
+  { id: "emerald", name: "Emerald", hex: "#059669", bg: "bg-emerald-600" },
+  { id: "purple", name: "Purple", hex: "#9333EA", bg: "bg-purple-600" },
+  { id: "rose", name: "Rose", hex: "#E11D48", bg: "bg-rose-600" },
+  { id: "orange", name: "Orange", hex: "#EA580C", bg: "bg-orange-600" },
+  { id: "teal", name: "Teal", hex: "#0D9488", bg: "bg-teal-600" },
+  { id: "yellow", name: "Amber", hex: "#CA8A04", bg: "bg-amber-500" },
+  { id: "pink", name: "Pink", hex: "#DB2777", bg: "bg-pink-600" },
+  { id: "cyan", name: "Cyan", hex: "#0891B2", bg: "bg-cyan-600" },
+  { id: "slate", name: "Slate", hex: "#475569", bg: "bg-slate-600" },
+  { id: "lime", name: "Lime", hex: "#65A30D", bg: "bg-lime-600" },
 ];
 
 export default function SettingsPage() {
@@ -111,9 +118,15 @@ export default function SettingsPage() {
 
     const savedAccent = localStorage.getItem("app_accent") || "indigo";
     setAccent(savedAccent);
+    document.documentElement.setAttribute("data-accent", savedAccent);
 
     const savedCompact = localStorage.getItem("app_compact") === "true";
     setCompactDensity(savedCompact);
+    if (savedCompact) {
+      document.documentElement.setAttribute("data-compact", "true");
+    } else {
+      document.documentElement.removeAttribute("data-compact");
+    }
 
     const savedApprovalEmail = localStorage.getItem("pref_approval_email") as "instant" | "daily" | "none";
     if (savedApprovalEmail) setApprovalEmailPref(savedApprovalEmail);
@@ -149,12 +162,18 @@ export default function SettingsPage() {
   const handleAccentChange = (accentId: string) => {
     setAccent(accentId);
     localStorage.setItem("app_accent", accentId);
+    document.documentElement.setAttribute("data-accent", accentId);
   };
 
   const handleCompactToggle = () => {
     const next = !compactDensity;
     setCompactDensity(next);
     localStorage.setItem("app_compact", String(next));
+    if (next) {
+      document.documentElement.setAttribute("data-compact", "true");
+    } else {
+      document.documentElement.removeAttribute("data-compact");
+    }
   };
 
   // Notification Preference Handlers
@@ -517,7 +536,7 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
               {ACCENT_COLORS.map((item) => {
                 const isSelected = accent === item.id;
                 return (
@@ -525,15 +544,19 @@ export default function SettingsPage() {
                     key={item.id}
                     type="button"
                     onClick={() => handleAccentChange(item.id)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-semibold transition ${
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-semibold transition ${
                       isSelected
-                        ? "border-slate-900 dark:border-white bg-slate-100 dark:bg-slate-800 shadow-sm"
+                        ? "border-slate-900 dark:border-white bg-slate-100 dark:bg-slate-800 shadow-sm ring-2 ring-slate-900/10 dark:ring-white/20"
                         : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     }`}
                   >
-                    <span className={`w-3.5 h-3.5 rounded-full ${item.bg}`} />
-                    <span className="text-slate-900 dark:text-white">{item.name}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-slate-700 dark:text-slate-200" />}
+                    <span
+                      className="w-5 h-5 rounded-lg shrink-0 shadow-sm flex items-center justify-center text-white"
+                      style={{ backgroundColor: item.hex }}
+                    >
+                      {isSelected && <Check className="w-3 h-3 text-white drop-shadow-sm" />}
+                    </span>
+                    <span className="text-slate-900 dark:text-white truncate">{item.name}</span>
                   </button>
                 );
               })}

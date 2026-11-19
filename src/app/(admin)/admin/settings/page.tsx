@@ -35,21 +35,6 @@ interface StoreConfig {
 type SettingsTab = "appearance" | "rules" | "notifications" | "system";
 type ThemeMode = "light" | "dark" | "system";
 
-const ACCENT_COLORS = [
-  { id: "indigo", name: "Indigo", hex: "#4F46E5", bg: "bg-indigo-600" },
-  { id: "blue", name: "Sky Blue", hex: "#0284C7", bg: "bg-sky-500" },
-  { id: "emerald", name: "Emerald", hex: "#059669", bg: "bg-emerald-600" },
-  { id: "purple", name: "Purple", hex: "#9333EA", bg: "bg-purple-600" },
-  { id: "rose", name: "Rose", hex: "#E11D48", bg: "bg-rose-600" },
-  { id: "orange", name: "Orange", hex: "#EA580C", bg: "bg-orange-600" },
-  { id: "teal", name: "Teal", hex: "#0D9488", bg: "bg-teal-600" },
-  { id: "yellow", name: "Amber", hex: "#CA8A04", bg: "bg-amber-500" },
-  { id: "pink", name: "Pink", hex: "#DB2777", bg: "bg-pink-600" },
-  { id: "cyan", name: "Cyan", hex: "#0891B2", bg: "bg-cyan-600" },
-  { id: "slate", name: "Slate", hex: "#475569", bg: "bg-slate-600" },
-  { id: "lime", name: "Lime", hex: "#65A30D", bg: "bg-lime-600" },
-];
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
 
@@ -65,7 +50,6 @@ export default function SettingsPage() {
 
   // Theme & Appearance State
   const [theme, setTheme] = useState<ThemeMode>("light");
-  const [accent, setAccent] = useState<string>("indigo");
   const [compactDensity, setCompactDensity] = useState(false);
 
   // Notification Preferences State (Persisted in localStorage)
@@ -123,10 +107,6 @@ export default function SettingsPage() {
     const savedTheme = (localStorage.getItem("app_theme") as ThemeMode) || "light";
     setTheme(savedTheme);
 
-    const savedAccent = localStorage.getItem("app_accent") || "indigo";
-    setAccent(savedAccent);
-    document.documentElement.setAttribute("data-accent", savedAccent);
-
     const savedCompact = localStorage.getItem("app_compact") === "true";
     setCompactDensity(savedCompact);
     if (savedCompact) {
@@ -167,12 +147,6 @@ export default function SettingsPage() {
         root.classList.remove("dark");
       }
     }
-  };
-
-  const handleAccentChange = (accentId: string) => {
-    setAccent(accentId);
-    localStorage.setItem("app_accent", accentId);
-    document.documentElement.setAttribute("data-accent", accentId);
   };
 
   const handleCompactToggle = () => {
@@ -618,45 +592,6 @@ export default function SettingsPage() {
                   </span>
                 )}
               </button>
-            </div>
-          </div>
-
-          {/* Accent Color Palette Card */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Palette className="w-4 h-4 text-indigo-500" />
-                Interface Accent Theme
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Pick a highlight hue applied across badges, active tabs, and primary action buttons.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-              {ACCENT_COLORS.map((item) => {
-                const isSelected = accent === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleAccentChange(item.id)}
-                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-semibold transition ${
-                      isSelected
-                        ? "border-slate-900 dark:border-white bg-slate-100 dark:bg-slate-800 shadow-sm ring-2 ring-slate-900/10 dark:ring-white/20"
-                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                    }`}
-                  >
-                    <span
-                      className="w-5 h-5 rounded-lg shrink-0 shadow-sm flex items-center justify-center text-white"
-                      style={{ backgroundColor: item.hex }}
-                    >
-                      {isSelected && <Check className="w-3 h-3 text-white drop-shadow-sm" />}
-                    </span>
-                    <span className="text-slate-900 dark:text-white truncate">{item.name}</span>
-                  </button>
-                );
-              })}
             </div>
           </div>
 

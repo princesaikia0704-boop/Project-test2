@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { DynamicRuleBuilder } from "@/components/admin/DynamicRuleBuilder";
 import {
-  Settings,
   RefreshCw,
   Loader2,
   CheckCircle2,
@@ -18,9 +17,7 @@ import {
   Database,
   Sparkles,
   Check,
-  Mail,
   Sliders,
-  LogOut,
   Layers,
 } from "lucide-react";
 

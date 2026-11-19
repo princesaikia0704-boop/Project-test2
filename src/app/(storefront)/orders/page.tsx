@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Loader2,
   Package,
-  Download,
 } from "lucide-react";
 
 export default function OrdersPage() {
@@ -131,15 +130,6 @@ export default function OrdersPage() {
             Track lifecycle approval states and cancel pending supply requests.
           </p>
         </div>
-        <a
-          href="/api/admin/billing/export"
-          download
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm w-fit"
-          title="Download orders and billing sheet Excel/CSV"
-        >
-          <Download className="w-3.5 h-3.5 text-slate-600" />
-          <span>Export Cost Sheet (Excel)</span>
-        </a>
       </div>
 
       {feedbackMessage && (

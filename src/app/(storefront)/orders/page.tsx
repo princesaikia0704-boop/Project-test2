@@ -3,12 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { Order, OrderStatus } from "@/lib/db/schema";
 import { formatCurrency } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Truck,
-  Ban,
   AlertCircle,
   Loader2,
   Package,
@@ -66,61 +63,6 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusBadge = (status: OrderStatus) => {
-    switch (status) {
-      case "PENDING_APPROVAL":
-        return (
-          <span
-            data-testid="status-chip-pending"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
-          >
-            <Clock className="w-3.5 h-3.5" />
-            Pending Approval
-          </span>
-        );
-      case "APPROVED":
-        return (
-          <span
-            data-testid="status-chip-approved"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Approved
-          </span>
-        );
-      case "REJECTED":
-        return (
-          <span
-            data-testid="status-chip-rejected"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
-          >
-            <XCircle className="w-3.5 h-3.5" />
-            Rejected
-          </span>
-        );
-      case "FULFILLED":
-        return (
-          <span
-            data-testid="status-chip-fulfilled"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-          >
-            <Truck className="w-3.5 h-3.5" />
-            Fulfilled
-          </span>
-        );
-      case "CANCELLED":
-        return (
-          <span
-            data-testid="status-chip-cancelled"
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-          >
-            <Ban className="w-3.5 h-3.5" />
-            Cancelled
-          </span>
-        );
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
@@ -144,11 +86,12 @@ export default function OrdersPage() {
           <p className="text-xs">Loading order history...</p>
         </div>
       ) : orders.length === 0 ? (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center text-slate-400">
-          <Package className="w-16 h-16 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-          <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No orders found</h3>
-          <p className="text-xs text-slate-400">You haven&apos;t placed any supply requisitions yet.</p>
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No orders found"
+          description="You haven't placed any supply requisitions yet."
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800"
+        />
       ) : (
         <div className="space-y-4">
           {orders.map((order) => {
@@ -167,7 +110,7 @@ export default function OrdersPage() {
                       <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
                         {order.orderNumber || order.id}
                       </span>
-                      {getStatusBadge(order.status)}
+                      <StatusBadge status={order.status} />
                     </div>
                     <span className="text-xs text-slate-400 mt-1 block">
                       Placed on {new Date(order.createdAt).toLocaleDateString("en-US", {

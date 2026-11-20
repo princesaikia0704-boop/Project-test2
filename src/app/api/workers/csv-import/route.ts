@@ -83,10 +83,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    console.log(
-      `[csv-import] Starting import for file: ${payload.fileUrl}, uploaded by: ${payload.uploadedBy}`
-    );
-
     // 4. Fetch CSV file from R2
     const csvResponse = await fetchWithTimeout(payload.fileUrl, {
       timeoutMs: CSV_FETCH_TIMEOUT_MS,
@@ -173,10 +169,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       result.errors = result.errors.slice(0, 100);
       result.errors.push(`... and ${totalErrors - 100} more errors`);
     }
-
-    console.log(
-      `[csv-import] Import complete: ${result.processed} processed, ${result.failed} failed`
-    );
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {

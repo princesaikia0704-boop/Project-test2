@@ -98,11 +98,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       userAgent: payload.userAgent ?? req.headers.get("user-agent") ?? null,
     });
 
-    console.log(
-      `[audit-log] Recorded audit entry: id=${auditLog.id}, action=${payload.action}, ` +
-        `entity=${payload.entityType}:${payload.entityId}`
-    );
-
     const result: AuditLogResult = {
       logged: true,
       auditLogId: auditLog.id,

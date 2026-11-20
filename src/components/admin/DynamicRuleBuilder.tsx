@@ -9,7 +9,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Settings,
-  DollarSign,
+  IndianRupee,
   Building2,
   Palette,
   ImageIcon,
@@ -20,6 +20,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useImageUpload } from "@/hooks/useImageUpload";
 
 const BRAND_COLOR_PALETTE = [
   { name: "Navy", hex: "#0F172A" },
@@ -78,8 +79,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
   const [companyName, setCompanyName] = useState(currentConfig.company_name);
   const [primaryColor, setPrimaryColor] = useState(currentConfig.primary_color);
   const [logoUrl, setLogoUrl] = useState(currentConfig.logo_url);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { isUploading, uploadError, uploadImage, clearError } = useImageUpload();
 
   // Reset form when currentConfig changes externally
   useEffect(() => {
@@ -87,7 +87,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
     setCompanyName(currentConfig.company_name);
     setPrimaryColor(currentConfig.primary_color);
     setLogoUrl(currentConfig.logo_url);
-    setUploadError(null);
+    clearError();
   }, [currentConfig]);
 
   // Handle local image file upload
@@ -96,58 +96,17 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setUploadError("Please select a valid image file (PNG, JPG, SVG, WebP).");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError("Image file size must be less than 5 MB.");
       return;
     }
 
-    setUploadError(null);
-    setIsUploading(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          setLogoUrl(data.url);
-          setIsUploading(false);
-          return;
-        }
-      }
-
-      // Fallback to client-side base64 Data URL if upload endpoint fails
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        if (dataUrl) setLogoUrl(dataUrl);
-        setIsUploading(false);
-      };
-      reader.onerror = () => {
-        setUploadError("Failed to read image file.");
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
-        if (dataUrl) setLogoUrl(dataUrl);
-        setIsUploading(false);
-      };
-      reader.readAsDataURL(file);
-    } finally {
-      e.target.value = "";
+    const uploadedUrl = await uploadImage(file);
+    if (uploadedUrl) {
+      setLogoUrl(uploadedUrl);
     }
+    e.target.value = "";
   };
 
   // ── Change Detection ───────────────────────────────────────────────────
@@ -167,7 +126,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
 
     const dollars = parseFloat(approvalDollars);
     if (isNaN(dollars) || dollars < 0) {
-      errors.approvalDollars = "Must be a valid non-negative dollar amount.";
+      errors.approvalDollars = "Must be a valid non-negative rupee amount (₹).";
     }
 
     if (!companyName.trim()) {
@@ -249,7 +208,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
             htmlFor="auto-approve-limit"
             className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"
           >
-            <DollarSign className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            <IndianRupee className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             Auto-Approval Threshold
           </label>
           <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -279,7 +238,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
             <p className="text-xs text-red-600">{validationErrors.approvalDollars}</p>
           )}
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Internal value: {dollarsToCents(approvalDollars).toLocaleString()} cents
+            Internal value: {dollarsToCents(approvalDollars).toLocaleString()} paisa (₹)
           </p>
         </div>
 

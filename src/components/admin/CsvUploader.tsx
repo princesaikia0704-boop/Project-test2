@@ -16,6 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCsvUpload } from "@/hooks/useCsvUpload";
 
 // ── Props ────────────────────────────────────────────────────────────────────
 export interface CsvUploaderProps {
@@ -32,15 +33,19 @@ const ACCEPTED_MIME_TYPES = [
   "text/plain",
 ];
 
-// ── Upload State ─────────────────────────────────────────────────────────────
-type UploadStatus = "idle" | "validating" | "uploading" | "processing" | "success" | "error";
-
 // ── Component ────────────────────────────────────────────────────────────────
 export const CsvUploader: React.FC<CsvUploaderProps> = ({ onUploadComplete }) => {
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [progress, setProgress] = useState(0);
+  const {
+    status,
+    progress,
+    errorMessage,
+    setStatus,
+    setProgress,
+    setErrorMessage,
+    uploadCsv,
+    reset,
+  } = useCsvUpload({ onSuccess: onUploadComplete });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,75 +129,17 @@ export const CsvUploader: React.FC<CsvUploaderProps> = ({ onUploadComplete }) =>
   // ── Upload Flow ──────────────────────────────────────────────────────────
   const handleUpload = async () => {
     if (!selectedFile) return;
-
-    try {
-      // Step 1: Get pre-signed URL
-      setStatus("uploading");
-      setProgress(10);
-
-      const presignResponse = await fetch("/api/admin/uploads/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          fileSizeBytes: selectedFile.size,
-          contentType: "text/csv",
-        }),
-      });
-
-      if (!presignResponse.ok) {
-        const err = await presignResponse.json().catch(() => ({}));
-        throw new Error(err.message ?? `Failed to get upload URL (${presignResponse.status})`);
-      }
-
-      const { uploadUrl, fileUrl } = await presignResponse.json();
-      setProgress(30);
-
-      // Step 2: Upload file directly to pre-signed URL (R2)
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "PUT",
-        body: selectedFile,
-        headers: {
-          "Content-Type": "text/csv",
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`File upload failed (${uploadResponse.status})`);
-      }
-
-      setProgress(70);
-
-      // Step 3: Trigger background CSV import
-      setStatus("processing");
-
-      const importResponse = await fetch("/api/admin/inventory/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileUrl }),
-      });
-
-      if (!importResponse.ok) {
-        const err = await importResponse.json().catch(() => ({}));
-        throw new Error(err.message ?? `Import trigger failed (${importResponse.status})`);
-      }
-
-      setProgress(100);
-      setStatus("success");
-      onUploadComplete();
-    } catch (err: any) {
-      console.error("[CsvUploader] Upload error:", err);
-      setErrorMessage(err.message ?? "An unexpected error occurred during upload.");
-      setStatus("error");
-    }
+    await uploadCsv(selectedFile);
   };
 
   // ── Reset Handler ────────────────────────────────────────────────────────
   const handleReset = () => {
-    setStatus("idle");
-    setProgress(0);
+    reset();
     setSelectedFile(null);
-    setErrorMessage("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
     setIsDragOver(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";

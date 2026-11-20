@@ -32,7 +32,7 @@ export const storeSettingsSchema = z.object({
     )
     .optional()
     .nullable(),
-  currency: z.string().trim().length(3, "Currency code must be 3 characters").default("USD"),
+  currency: z.string().trim().length(3, "Currency code must be 3 characters").default("INR"),
 });
 
 export const updateStoreSettingsSchema = storeSettingsSchema.partial();

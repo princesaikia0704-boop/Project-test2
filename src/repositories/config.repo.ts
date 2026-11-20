@@ -41,7 +41,7 @@ export class ConfigRepository implements IConfigRepository {
         autoApproveLimitCents: 10000,
         companyName: "Office Store",
         primaryColor: "#0F172A",
-        currency: "USD",
+        currency: "INR",
       })
       .onConflictDoNothing()
       .returning();

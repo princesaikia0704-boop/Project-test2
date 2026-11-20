@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import {
   ShoppingCart,
   Clock,
-  DollarSign,
+  IndianRupee,
   AlertTriangle,
   RefreshCw,
   TrendingUp,
@@ -126,7 +126,7 @@ export default function AdminDashboardPage() {
     {
       label: "Total Revenue (MTD)",
       value: formatCurrency(activeKpis.spendMtdCents),
-      icon: <DollarSign className="w-5 h-5" />,
+      icon: <IndianRupee className="w-5 h-5" />,
       color: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
       iconBg: "bg-emerald-100 dark:bg-emerald-900/60",
     },
@@ -291,7 +291,7 @@ export default function AdminDashboardPage() {
           className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition group"
         >
           <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 group-hover:scale-110 transition">
-            <DollarSign className="w-5 h-5" />
+            <IndianRupee className="w-5 h-5" />
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Store Settings</h3>

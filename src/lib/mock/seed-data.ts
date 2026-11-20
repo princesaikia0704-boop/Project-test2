@@ -541,11 +541,11 @@ export const SEED_PRODUCTS: ProductSeed[] = [
 
 export const SEED_STORE_SETTINGS: StoreSettingsSeed = {
   id: 1,
-  autoApproveLimitCents: 10000, // $100.00
+  autoApproveLimitCents: 10000, // ₹100.00
   companyName: "Office Store",
   primaryColor: "#0F172A",
   logoUrl: "/logo.svg",
-  currency: "USD",
+  currency: "INR",
   updatedAt: NOW,
 };
 

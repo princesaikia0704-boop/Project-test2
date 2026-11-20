@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
+import { useCheckout } from "@/hooks/useCheckout";
 import { BudgetMeter } from "@/components/storefront/BudgetMeter";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -37,8 +38,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 }) => {
   const router = useRouter();
   const { items, updateQuantity, removeFromCart, clearCart, cartTotalCents } = useCart();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { submitOrder, isSubmitting, errorMessage } = useCheckout({
+    onSuccess: () => {
+      clearCart();
+      onClose();
+      router.push("/orders?success=true");
+    },
+  });
 
   if (!isOpen) return null;
 
@@ -47,40 +53,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const handleCheckout = async () => {
     if (items.length === 0 || isSubmitting) return;
-    setIsSubmitting(true);
-    setErrorMessage(null);
-
-    const idempotencyKey = `chk-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-    try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": idempotencyKey,
-        },
-        body: JSON.stringify({
-          items: items.map((i) => ({
-            productId: i.product.id,
-            quantity: i.quantity,
-          })),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Order submission failed");
-      }
-
-      clearCart();
-      onClose();
-      router.push("/orders?success=true");
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to process checkout");
-    } finally {
-      setIsSubmitting(false);
-    }
+    await submitOrder(
+      items.map((i) => ({
+        productId: i.product.id,
+        quantity: i.quantity,
+      }))
+    );
   };
 
   return (

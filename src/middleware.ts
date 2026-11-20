@@ -310,8 +310,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
 
     if (isAdminRoute) {
-      // EMPLOYEE is completely forbidden from admin routes (except public database seed)
-      if (persona.role === "EMPLOYEE" && pathname !== "/api/admin/seed") {
+      // EMPLOYEE is forbidden from admin routes (except public database seed and store-config GET for branding)
+      const isAllowedEmployeeAdminRoute =
+        pathname === "/api/admin/seed" ||
+        (pathname === "/api/admin/store-config" && req.method === "GET");
+
+      if (persona.role === "EMPLOYEE" && !isAllowedEmployeeAdminRoute) {
         if (pathname.startsWith("/api/")) {
           return createJsonErrorResponse(
             "Forbidden",

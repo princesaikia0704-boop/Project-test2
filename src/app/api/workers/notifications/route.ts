@@ -105,17 +105,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const { subject, body } = templateFn(payload);
 
     // 5. Dispatch notification via available channels
-    //    Currently in mock/log mode — all notifications are console-logged.
-
-    console.log(
-      `[notifications] ─── Dispatching notification ───\n` +
-        `  Type:    ${payload.type}\n` +
-        `  To:      ${payload.userId ?? "N/A"}\n` +
-        `  Subject: ${subject}\n` +
-        `  Body:    ${body}\n` +
-        `  OrderId: ${payload.orderId ?? "N/A"}\n` +
-        `────────────────────────────────────────────────`
-    );
+    //    Currently in log mode. Enable Resend/Slack below when env vars are set.
 
     // TODO: Resend email integration
     // Uncomment when RESEND_API_KEY is configured:

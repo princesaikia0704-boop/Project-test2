@@ -141,6 +141,16 @@ export const USER_SLUG_TO_UUID: Record<string, string> = {
   "dave@company.com": "30000000-0000-0000-0000-000000000003",
 };
 
+/**
+ * Read a cookie value by name on the client. Returns null on SSR.
+ * @example getCookieValue("mock_persona") => "user-alice-emp"
+ */
+export function getCookieValue(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${encodeURIComponent(name)}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export function normalizeUserUuid(userId?: string | null): string {
   if (!userId) return "30000000-0000-0000-0000-000000000001";
   if (isUuid(userId)) return userId;

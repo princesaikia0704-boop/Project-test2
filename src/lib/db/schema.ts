@@ -308,7 +308,7 @@ export const storeSettings = pgTable(
   {
     id: integer("id").primaryKey().default(1),
     autoApproveLimitCents: integer("auto_approve_limit_cents")
-      .default(10000) // Default $100.00
+      .default(10000) // Default ₹100.00
       .notNull(),
     companyName: varchar("company_name", { length: 255 })
       .default("Office Store")
@@ -317,7 +317,7 @@ export const storeSettings = pgTable(
       .default("#0F172A")
       .notNull(),
     logoUrl: text("logo_url"),
-    currency: varchar("currency", { length: 10 }).default("USD").notNull(),
+    currency: varchar("currency", { length: 10 }).default("INR").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
       .notNull(),

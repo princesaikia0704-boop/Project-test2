@@ -40,6 +40,14 @@ export interface CreateOrderResult {
   itemsCount: number;
 }
 
+/**
+ * Atomically creates an order with ACID guarantees, sorted row locks (preventing deadlocks),
+ * dynamic auto-approval threshold checks, and department budget verification.
+ *
+ * @param input - Order creation payload including user, department, items, and optional idempotency key
+ * @returns Details of created order (id, status, total, remaining budget, items count)
+ * @throws {DomainError} If payload is invalid, items empty, product not found, or stock insufficient
+ */
 export async function createOrderWithACID(input: CreateOrderInput): Promise<CreateOrderResult> {
   // 1. Validation
   if (!input.items || !Array.isArray(input.items) || input.items.length === 0) {
@@ -255,6 +263,14 @@ export async function createOrderWithACID(input: CreateOrderInput): Promise<Crea
   });
 }
 
+/**
+ * Approves a pending purchase order and records an immutable audit log entry.
+ *
+ * @param orderId - UUID of the order to approve
+ * @param managerUserId - UUID of the approving manager
+ * @param comment - Optional approval comments or notes
+ * @throws {DomainError} If order does not exist or is not in PENDING_APPROVAL status
+ */
 export async function approveOrder(
   orderId: string,
   managerUserId: string,
@@ -287,6 +303,15 @@ export async function approveOrder(
   });
 }
 
+/**
+ * Rejects a pending purchase order, restoring reserved product stock quantities,
+ * refunding the department budget, and recording an audit trail.
+ *
+ * @param orderId - UUID of the order to reject
+ * @param managerUserId - UUID of the rejecting manager
+ * @param reason - Mandatory rejection explanation
+ * @throws {DomainError} If reason is omitted, order not found, or order is not pending
+ */
 export async function rejectOrder(
   orderId: string,
   managerUserId: string,
@@ -333,6 +358,15 @@ export async function rejectOrder(
   });
 }
 
+/**
+ * Cancels a pending order placed by a user, safely restoring inventory stock,
+ * refunding the department budget allocation, and logging the event.
+ *
+ * @param orderId - UUID of the order to cancel
+ * @param userId - ID of the cancelling user (must match order owner)
+ * @param reason - Optional cancellation explanation
+ * @throws {DomainError} If user is unauthorized or order cannot be cancelled
+ */
 export async function cancelOrder(
   orderId: string,
   userId: string,

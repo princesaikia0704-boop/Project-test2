@@ -21,6 +21,12 @@ export interface UpdateStoreSettingsInput {
 const STORE_CONFIG_CACHE_KEY = "config:store_settings";
 const STORE_CONFIG_TTL_SECONDS = 3600; // 1 hour
 
+/**
+ * Retrieves the store settings with Redis Cache-Aside optimization.
+ * Falls back to database / mock store on cache miss.
+ *
+ * @returns Current store configuration settings
+ */
 export async function getStoreSettings(): Promise<StoreSettings> {
   // 1. Redis Cache-Aside Lookup
   try {
@@ -45,6 +51,14 @@ export async function getStoreSettings(): Promise<StoreSettings> {
   return settings;
 }
 
+/**
+ * Updates store settings, validates domain constraints (hex colors, positive thresholds),
+ * invalidates Redis cache, and writes an audit log entry.
+ *
+ * @param input - Configuration fields to update
+ * @returns Updated store configuration
+ * @throws {DomainError} If input values violate validation rules
+ */
 export async function updateStoreSettings(
   input: UpdateStoreSettingsInput
 ): Promise<StoreSettings> {

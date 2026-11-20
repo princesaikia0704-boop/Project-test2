@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -179,38 +181,6 @@ export default function ApprovalsPage() {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-3 h-3" />
-            Approved
-          </span>
-        );
-      case "PENDING_APPROVAL":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-            <Clock className="w-3 h-3" />
-            Pending Approval
-          </span>
-        );
-      case "REJECTED":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-            <XCircle className="w-3 h-3" />
-            Rejected
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            {status}
-          </span>
-        );
-    }
-  };
-
   const currentList = activeTab === "pending" ? orders : historyOrders;
 
   return (
@@ -289,17 +259,16 @@ export default function ApprovalsPage() {
         </div>
       ) : currentList.length === 0 ? (
         /* Empty State */
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-16 text-center">
-          <Inbox className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
-          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 mb-1">
-            {activeTab === "pending" ? "All caught up!" : "No department orders yet"}
-          </h3>
-          <p className="text-xs text-slate-400">
-            {activeTab === "pending"
+        <EmptyState
+          icon={Inbox}
+          title={activeTab === "pending" ? "All caught up!" : "No department orders yet"}
+          description={
+            activeTab === "pending"
               ? "There are no orders pending approval for your department right now."
-              : "No orders have been placed in your department yet."}
-          </p>
-        </div>
+              : "No orders have been placed in your department yet."
+          }
+          className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-16"
+        />
       ) : (
         /* Orders List */
         <div className="space-y-3">
@@ -361,7 +330,7 @@ export default function ApprovalsPage() {
                     </div>
 
                     {/* Status Badge */}
-                    <div>{getStatusBadge(order.status)}</div>
+                    <div><StatusBadge status={order.status} /></div>
 
                     {/* Total */}
                     <div>

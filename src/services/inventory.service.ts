@@ -24,6 +24,14 @@ export interface StockAdjustmentResult {
   isLowStock: boolean;
 }
 
+/**
+ * Adjusts product inventory stock by delta or direct assignment,
+ * preventing negative stock and creating an audit record.
+ *
+ * @param input - Product ID, delta or newQuantity, reason, and admin user ID
+ * @returns Product stock details and low stock warning flag
+ * @throws {DomainError} If product does not exist, reason is omitted, or stock would become negative
+ */
 export async function adjustProductStock(
   input: StockAdjustmentInput
 ): Promise<StockAdjustmentResult> {

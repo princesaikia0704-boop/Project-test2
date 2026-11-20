@@ -27,6 +27,14 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
 const PRESIGNED_URL_TTL = 900; // 15 minutes (900 seconds)
 const PROHIBITED_EXTENSIONS = [".sh", ".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"];
 
+/**
+ * Generates a presigned Cloudflare R2 / S3 upload URL with security constraints:
+ * size caps (10MB), expiration TTL (15 min), and executable extension blocking.
+ *
+ * @param input - Filename, file size in bytes, MIME content type, and admin user
+ * @returns Object key, presigned upload URL, and expiry duration
+ * @throws {DomainError} If filename is missing, file is too large, or file extension is prohibited
+ */
 export async function generatePresignedUploadUrl(
   input: PresignedUploadInput
 ): Promise<PresignedUploadResult> {

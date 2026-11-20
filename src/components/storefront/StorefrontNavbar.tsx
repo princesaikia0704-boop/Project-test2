@@ -1,63 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { ShoppingBag, Briefcase } from "lucide-react";
-import { PersonaSwitcher, PERSONAS, type Persona } from "@/components/shared/PersonaSwitcher";
-
-function getCookieValue(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
+import { PersonaSwitcher } from "@/components/shared/PersonaSwitcher";
+import { useBranding } from "@/hooks/useBranding";
 
 export const StorefrontNavbar: React.FC = () => {
   const pathname = usePathname();
   const { totalItemCount, isDrawerOpen, openDrawer, closeDrawer } = useCart();
-  // kept for potential future use (e.g. showing budget for current persona)
-  const [_persona, setPersona] = useState<Persona>(PERSONAS[0]);
-  const [companyName, setCompanyName] = useState<string>("Office Store");
-  const [logoUrl, setLogoUrl] = useState<string>("");
-
-  useEffect(() => {
-    const id = getCookieValue("mock_persona");
-    const found = PERSONAS.find((p) => p.id === id);
-    if (found) setPersona(found);
-
-    // Load initial branding from localStorage
-    const savedName = localStorage.getItem("app_company_name");
-    if (savedName) setCompanyName(savedName);
-    const savedLogo = localStorage.getItem("app_logo_url");
-    if (savedLogo) setLogoUrl(savedLogo);
-
-    // Fetch latest branding from store-config API
-    fetch("/api/admin/store-config")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.config?.company_name) {
-          setCompanyName(data.config.company_name);
-          localStorage.setItem("app_company_name", data.config.company_name);
-        }
-        if (data?.config?.logo_url !== undefined) {
-          setLogoUrl(data.config.logo_url);
-          localStorage.setItem("app_logo_url", data.config.logo_url);
-        }
-      })
-      .catch(() => {});
-
-    const handleStorageUpdate = () => {
-      const n = localStorage.getItem("app_company_name");
-      if (n) setCompanyName(n);
-      const l = localStorage.getItem("app_logo_url");
-      if (l !== null) setLogoUrl(l);
-    };
-
-    window.addEventListener("storage", handleStorageUpdate);
-    return () => window.removeEventListener("storage", handleStorageUpdate);
-  }, [pathname]);
+  const { companyName, logoUrl } = useBranding();
 
   const navLinks = [
     { href: "/", label: "Catalog" },

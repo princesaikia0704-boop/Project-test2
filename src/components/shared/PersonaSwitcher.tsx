@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Users, Check, ChevronDown, LogOut } from "lucide-react";
+import { getCookieValue } from "@/lib/utils";
 
 export type Persona = {
   id: string;
@@ -43,12 +44,6 @@ export const PERSONAS: Persona[] = [
   },
 ];
 
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
 function setPersonaCookies(p: Persona) {
   document.cookie = `mock_persona=${p.id}; path=/; max-age=86400`;
   document.cookie = `mock_user_role=${p.role}; path=/; max-age=86400`;
@@ -79,7 +74,7 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
 
   // Read cookie on mount
   useEffect(() => {
-    const id = getCookie("mock_persona");
+    const id = getCookieValue("mock_persona");
     const found = PERSONAS.find((p) => p.id === id);
     if (found) setCurrent(found);
   }, []);

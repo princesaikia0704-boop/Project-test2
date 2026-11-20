@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
@@ -13,6 +13,11 @@ export const StorefrontNavbar: React.FC = () => {
   const pathname = usePathname();
   const { totalItemCount, isDrawerOpen, openDrawer, closeDrawer } = useCart();
   const { companyName, logoUrl } = useBranding();
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [logoUrl]);
 
   const navLinks = [
     { href: "/", label: "Catalog" },
@@ -28,15 +33,13 @@ export const StorefrontNavbar: React.FC = () => {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2.5 font-black text-slate-900 dark:text-white text-lg">
               <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-lg flex items-center justify-center text-white overflow-hidden shrink-0">
-                {logoUrl ? (
+                {logoUrl && !logoError ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={logoUrl}
                     alt={companyName}
                     className="w-full h-full object-contain p-1"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = "none";
-                    }}
+                    onError={() => setLogoError(true)}
                   />
                 ) : (
                   <Briefcase className="w-5 h-5" />

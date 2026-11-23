@@ -393,7 +393,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
                 value={logoUrl}
                 onChange={(e) => {
                   setLogoUrl(e.target.value);
-                  setUploadError(null);
+                  clearError();
                 }}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
                 placeholder="https://example.com/logo.png or /logo.svg"
@@ -462,7 +462,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
                 type="button"
                 onClick={() => {
                   setLogoUrl("");
-                  setUploadError(null);
+                  clearError();
                 }}
                 className="text-xs text-rose-600 dark:text-rose-400 hover:underline font-semibold shrink-0"
               >

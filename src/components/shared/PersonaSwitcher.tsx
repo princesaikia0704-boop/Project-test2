@@ -121,7 +121,7 @@ export function PersonaSwitcher({ variant = "light", collapsed = false }: Person
         <Users className="w-3.5 h-3.5 shrink-0" />
         {!collapsed && (
           <>
-            <span className="hidden sm:inline">{current.name}</span>
+            <span className="hidden sm:inline text-[10px] font-mono text-slate-500 dark:text-slate-400">{current.id}</span>
             <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${current.badgeBg}`}>
               {current.badge}
             </span>

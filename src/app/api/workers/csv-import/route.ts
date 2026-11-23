@@ -214,7 +214,7 @@ async function processBatch(
             priceCents: validated.data!.priceCents,
             stockQuantity: validated.data!.stockQuantity,
             categoryId: validated.data!.categoryId,
-            imageUrl: validated.data!.imageUrl,
+            imageUrl: validated.data!.imageUrl ?? undefined,
           });
         } else {
           mockDataStore.createProduct({

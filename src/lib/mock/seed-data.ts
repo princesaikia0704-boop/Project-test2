@@ -52,7 +52,7 @@ export interface ProductSeed {
   stockQuantity: number;
   lowStockThreshold: number;
   categoryId: string;
-  imageUrl: string;
+  imageUrl: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

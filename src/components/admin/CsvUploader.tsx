@@ -136,10 +136,6 @@ export const CsvUploader: React.FC<CsvUploaderProps> = ({ onUploadComplete }) =>
   const handleReset = () => {
     reset();
     setSelectedFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
     setIsDragOver(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";

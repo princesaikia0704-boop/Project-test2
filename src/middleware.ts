@@ -273,7 +273,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   // 2. Identify Public Routes
   const isPublicRoute =
     pathname === "/api/health" ||
-    pathname === "/api/admin/seed" ||
     pathname === "/login" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/(auth)/") ||

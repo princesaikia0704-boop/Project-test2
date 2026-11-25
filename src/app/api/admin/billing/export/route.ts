@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withApiReliability } from "@/lib/http/api-handler";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { isDatabaseMocked } from "@/lib/mock/utils";
 import { desc, eq } from "drizzle-orm";
 
-export async function GET(req: NextRequest) {
+export const GET = withApiReliability(
+  async (req: NextRequest) => {
   type BillingRow = {
     orderNumber: string;
     orderId: string;
@@ -180,4 +182,6 @@ export async function GET(req: NextRequest) {
       "Cache-Control": "no-cache",
     },
   });
-}
+  },
+  { allowedRoles: ["ADMIN", "MANAGER"] }
+);

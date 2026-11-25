@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { Briefcase, LogIn, Check, Shield, Users, User } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
@@ -52,7 +52,7 @@ const personas = [
   },
 ];
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect_url");
 
@@ -155,5 +155,17 @@ export default function LoginPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center p-4" />
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

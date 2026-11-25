@@ -382,7 +382,7 @@ export class MockHttpDriver {
 
       // Calculate total cents and verify products stock
       let calculatedTotalCents = 0;
-      const productsToUpdate: Array<{ product: (typeof this.state.products)[0]; quantity: number }> = [];
+      const productsToUpdate: Array<{ product: MockDbState['products'][number]; quantity: number }> = [];
 
       for (const item of sortedItemInputs) {
         if (item.quantity <= 0) {

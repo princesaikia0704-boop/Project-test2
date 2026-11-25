@@ -552,8 +552,8 @@ export class MockDataStore {
   public updateOrderStatus(
     orderId: string,
     status: OrderRecord["status"],
-    approvedByUserId?: string,
-    rejectionReason?: string
+    approvedByUserId?: string | null,
+    rejectionReason?: string | null
   ): OrderRecord {
     const order = this.orders.get(orderId);
     if (!order) throw new Error(`Order not found: ${orderId}`);
@@ -562,8 +562,8 @@ export class MockDataStore {
     order.status = status;
     order.updatedAt = new Date();
 
-    if (approvedByUserId) order.approvedByUserId = approvedByUserId;
-    if (rejectionReason) order.rejectionReason = rejectionReason;
+    if (approvedByUserId !== undefined) order.approvedByUserId = approvedByUserId;
+    if (rejectionReason !== undefined) order.rejectionReason = rejectionReason;
 
     // Automatic rollback if order is rejected or cancelled
     if ((status === "REJECTED" || status === "CANCELLED") && oldStatus !== "REJECTED" && oldStatus !== "CANCELLED") {

@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
-import { useCheckout } from "@/hooks/useCheckout";
 import { formatCurrency } from "@/lib/utils";
 import {
   Plus,
@@ -21,29 +20,46 @@ export default function CartPage() {
   const router = useRouter();
   const { items, updateQuantity, removeFromCart, clearCart, cartTotalCents } = useCart();
   const [notes, setNotes] = useState("");
-
-  const { submitOrder, isSubmitting, errorMessage: error } = useCheckout({
-    onSuccess: () => {
-      clearCart();
-    },
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const autoApproveLimitCents = 10000; // $100
   const isAutoApproved = cartTotalCents <= autoApproveLimitCents;
 
   const handleCheckout = async () => {
     if (items.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
+    setError(null);
 
-    const orderId = await submitOrder(
-      items.map((i) => ({
-        productId: i.product.id,
-        quantity: i.quantity,
-      })),
-      notes
-    );
+    const idempotencyKey = `chk-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    if (orderId) {
-      router.push(`/orders?placedOrder=${orderId}`);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            productId: i.product.id,
+            quantity: i.quantity,
+          })),
+          notes: notes.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Checkout submission failed");
+      }
+
+      clearCart();
+      router.push(`/orders?placedOrder=${data.orderId}`);
+    } catch (err: any) {
+      setError(err.message || "Failed to submit order");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

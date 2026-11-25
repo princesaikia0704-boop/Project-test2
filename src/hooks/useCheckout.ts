@@ -18,7 +18,7 @@ export interface UseCheckoutOptions {
 }
 
 export interface UseCheckoutReturn {
-  submitOrder: (items: CheckoutItem[], notes?: string | null) => Promise<string | null>;
+  submitOrder: (items: CheckoutItem[]) => Promise<string | null>;
   isSubmitting: boolean;
   errorMessage: string | null;
   clearError: () => void;
@@ -40,10 +40,7 @@ export function useCheckout({
 
   const clearError = () => setErrorMessage(null);
 
-  const submitOrder = async (
-    items: CheckoutItem[],
-    notes?: string | null
-  ): Promise<string | null> => {
+  const submitOrder = async (items: CheckoutItem[]): Promise<string | null> => {
     if (items.length === 0 || isSubmitting) return null;
 
     setIsSubmitting(true);
@@ -58,10 +55,7 @@ export function useCheckout({
           "Content-Type": "application/json",
           "Idempotency-Key": idempotencyKey,
         },
-        body: JSON.stringify({
-          items,
-          notes: notes?.trim() || null,
-        }),
+        body: JSON.stringify({ items }),
       });
 
       const data = await response.json();
@@ -71,7 +65,7 @@ export function useCheckout({
       }
 
       onSuccess?.();
-      return data.orderId ?? data.order?.id ?? data.id ?? null;
+      return data.order?.id ?? data.id ?? null;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to process checkout";
       setErrorMessage(msg);

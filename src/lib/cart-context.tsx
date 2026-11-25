@@ -53,7 +53,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, isInitialized]);
 
   const addToCart = (product: Product, quantity = 1) => {
-    if (product.stockQuantity <= 0) return;
     setItems((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
@@ -67,7 +66,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [
         ...prev,
-        { product, quantity: Math.min(quantity, product.stockQuantity) },
+        { product, quantity: Math.min(quantity, Math.max(1, product.stockQuantity)) },
       ];
     });
     setIsDrawerOpen(true);

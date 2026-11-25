@@ -51,8 +51,8 @@ export interface AuditLogRecord {
   entityId: string;
   oldValue: string | null;
   newValue: string | null;
-  ipAddress: string | null;
-  userAgent: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   createdAt: Date;
 }
 
@@ -142,7 +142,11 @@ export class MockDataStore {
     this.orders.clear();
     this.orderItems.clear();
     this.storeSettings = { ...SEED_STORE_SETTINGS };
-    this.auditLogs = SEED_AUDIT_LOGS.map((a) => ({ ...a }));
+    this.auditLogs = SEED_AUDIT_LOGS.map((a) => ({
+      ...a,
+      ipAddress: a.ipAddress ?? null,
+      userAgent: a.userAgent ?? null,
+    }));
 
     // Seed realistic sample orders for instant dashboard and approvals population
     const sampleOrderId1 = "60000000-0000-0000-0000-000000000001";

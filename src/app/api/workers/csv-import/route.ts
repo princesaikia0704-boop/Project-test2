@@ -67,15 +67,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     // 3. Parse payload
-    let payload: CsvImportPayload;
-    try {
-      payload = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json(
-        { error: "BadRequest", message: "Invalid JSON payload" },
-        { status: 400 }
-      );
-    }
+    const payload: CsvImportPayload = JSON.parse(rawBody);
 
     if (!payload.fileUrl || typeof payload.fileUrl !== "string") {
       return NextResponse.json(

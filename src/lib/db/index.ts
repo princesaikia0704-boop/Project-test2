@@ -1,7 +1,7 @@
 /**
  * Corporate Office Store - Database Singleton & Pooling Layer
  * Dual driver setup:
- * 1. db: Neon HTTP client with fetchConnectionCache = true for fast stateless queries.
+ * 1. db: Neon HTTP client for fast stateless queries (fetchConnectionCache always true by default).
  * 2. txDb: Neon WebSocket Pooler for multi-statement ACID transactions.
  * Fast Refresh safety enabled via globalThis singleton caching.
  * Transparent fallback to in-memory MockDataStore when live database is unconfigured.
@@ -13,9 +13,6 @@ import { drizzle as drizzleServerless, NeonDatabase } from "drizzle-orm/neon-ser
 import * as schema from "./schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
 import { getMockDrizzleClient, mockDataStore } from "@/lib/mock/mock-store";
-
-// Enable global HTTP connection pooling across warm Vercel/Node serverless functions
-neonConfig.fetchConnectionCache = true;
 
 // Ensure WebSocket constructor is available in Node.js server environments
 if (typeof WebSocket !== "undefined") {

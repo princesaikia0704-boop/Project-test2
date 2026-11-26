@@ -77,8 +77,12 @@ export async function verifySignatureAppRouter(
     return { isValid: false, error: "InvalidSignature" };
   }
 
-  // Mock / Development Verification
-  if (isServiceMocked("qstash")) {
+  // Mock / Development Verification (NEVER active in production without explicit ENABLE_MOCK_SERVICES="true")
+  const allowMockQueue =
+    isServiceMocked("qstash") &&
+    (process.env.NODE_ENV !== "production" || process.env.ENABLE_MOCK_SERVICES === "true");
+
+  if (allowMockQueue) {
     if (signature === "mock_valid_signature") {
       return { isValid: true };
     }
@@ -86,7 +90,11 @@ export async function verifySignatureAppRouter(
     return { isValid: false, error: "InvalidSignature" };
   }
 
-  // Live Cloud Verification
+  // Live Cloud Verification: fail closed if signing keys are missing
+  if (!process.env.QSTASH_CURRENT_SIGNING_KEY) {
+    return { isValid: false, error: "InvalidSignature" };
+  }
+
   const receiver = getQStashReceiver();
   if (!receiver) {
     return { isValid: false, error: "InvalidSignature" };

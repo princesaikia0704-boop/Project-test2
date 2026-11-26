@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Product } from "@/lib/db/schema";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 import { ShoppingCart, Plus, Minus, PackageCheck, AlertCircle, XCircle } from "lucide-react";
 
 export interface ProductCardProps {
@@ -14,6 +15,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const safeImageUrl = sanitizeSafeUrl(product.imageUrl);
 
   const isOutOfStock = product.stockQuantity <= 0;
   const isLowStock =
@@ -49,9 +51,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
     >
       {/* Product Image & Stock Badge Overlay */}
       <div className="relative aspect-square w-full mb-3 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-        {product.imageUrl && !imageError ? (
+        {safeImageUrl && !imageError ? (
           <Image
-            src={product.imageUrl}
+            src={safeImageUrl}
             alt={product.name}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

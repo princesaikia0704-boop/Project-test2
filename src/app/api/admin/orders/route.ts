@@ -1,28 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability } from "@/lib/http/api-handler";
+import { z } from "zod";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { orderRepo } from "@/repositories/order.repo";
-import { Order } from "@/lib/db/schema";
+import { orderStatusSchema, safeIdentifierSchema } from "@/lib/validators/order.schema";
+
+const adminOrdersQuerySchema = z.object({
+  status: orderStatusSchema.optional(),
+  departmentId: safeIdentifierSchema.optional(),
+});
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
-    const userRole = req.headers.get("x-user-role");
-    const departmentId =
-      req.headers.get("x-user-department-id") ||
-      req.headers.get("x-department-id") ||
-      "dept-eng";
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
 
     const { searchParams } = new URL(req.url);
-    const statusParam = searchParams.get("status") as Order["status"] | null;
+    const parsed = adminOrdersQuerySchema.safeParse({
+      status: searchParams.get("status") || undefined,
+      departmentId: searchParams.get("departmentId") || undefined,
+    });
 
-    // Managers are restricted to their department's orders.
-    // Admins can query all departments or pass a specific departmentId.
+    if (!parsed.success) {
+      return createErrorResponse(
+        "ValidationError",
+        parsed.error.issues[0]?.message || "Invalid query parameters",
+        400
+      );
+    }
+
+    // Managers are strictly locked to their authenticated departmentId.
     const deptFilter =
-      userRole === "ADMIN"
-        ? (searchParams.get("departmentId") || undefined)
-        : departmentId;
+      authUser.role === "ADMIN" ? parsed.data.departmentId : authUser.departmentId;
 
     const orders = await orderRepo.listDepartmentOrders(deptFilter, {
-      status: statusParam || undefined,
+      status: parsed.data.status,
     });
 
     return NextResponse.json(

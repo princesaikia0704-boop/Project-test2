@@ -22,7 +22,7 @@ export default function CatalogPage() {
   const handleSeed = async () => {
     setIsSeeding(true);
     try {
-      const res = await fetch("/api/admin/seed");
+      const res = await fetch("/api/admin/seed", { method: "POST" });
       if (res.ok) {
         window.location.reload();
       }

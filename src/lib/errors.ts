@@ -134,7 +134,11 @@ export function toApiErrorResponse(error: unknown): {
     };
   }
 
-  const message = error instanceof Error ? error.message : "An unexpected error occurred";
+  const rawMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "An unexpected internal server error occurred"
+      : rawMessage;
   return {
     body: { error: "InternalServerError", code: "INTERNAL_ERROR", message },
     statusCode: 500,

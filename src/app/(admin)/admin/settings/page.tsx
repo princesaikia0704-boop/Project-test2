@@ -68,37 +68,34 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const checkDeveloperRole = () => {
-      const matchRole = document.cookie.match(/(?:^|; )mock_user_role=([^;]*)/);
-      const role = matchRole ? decodeURIComponent(matchRole[1]).toUpperCase() : "";
-      const matchPersona = document.cookie.match(/(?:^|; )mock_persona=([^;]*)/);
-      const persona = matchPersona ? decodeURIComponent(matchPersona[1]) : "";
-
-      let storageRole = "";
+    const checkDeveloperRole = async () => {
       try {
-        const stored = localStorage.getItem("active_persona");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          storageRole = parsed.role?.toUpperCase() || "";
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) {
+          setUserRole("MANAGER");
+          setIsDeveloper(false);
+          setActiveTab((curr) => (curr === "system" ? "appearance" : curr));
+          return;
         }
-      } catch {}
+        const data = await res.json();
+        const role = String(data?.user?.role || "").toUpperCase();
+        const effectiveRole = role || "EMPLOYEE";
+        setUserRole(effectiveRole);
 
-      const effectiveRole = role || storageRole || (persona === "user-dave-adm" ? "ADMIN" : "MANAGER");
-      setUserRole(effectiveRole);
+        // System & Maintenance section is strictly restricted to server-authenticated ADMIN
+        const isDev = Boolean(data?.authenticated) && effectiveRole === "ADMIN";
+        setIsDeveloper(isDev);
 
-      // System & Maintenance section is strictly restricted to Developer / Admin (Dave Vance)
-      const isDev = effectiveRole === "ADMIN" || persona === "user-dave-adm";
-      setIsDeveloper(isDev);
-
-      // If non-developer is on the system tab, automatically switch to appearance
-      if (!isDev) {
+        if (!isDev) {
+          setActiveTab((curr) => (curr === "system" ? "appearance" : curr));
+        }
+      } catch {
+        setIsDeveloper(false);
         setActiveTab((curr) => (curr === "system" ? "appearance" : curr));
       }
     };
 
     checkDeveloperRole();
-    window.addEventListener("storage", checkDeveloperRole);
-    return () => window.removeEventListener("storage", checkDeveloperRole);
   }, []);
 
   // Initialize Theme from localStorage / DOM on mount
@@ -370,7 +367,7 @@ export default function SettingsPage() {
 
     setIsResetting(true);
     try {
-      const res = await fetch("/api/admin/seed");
+      const res = await fetch("/api/admin/seed", { method: "POST" });
       if (res.ok) {
         setSystemFeedback("Database reset and re-seeded successfully!");
         fetchConfig();

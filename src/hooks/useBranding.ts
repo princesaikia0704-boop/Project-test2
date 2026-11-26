@@ -1,62 +1,71 @@
-/**
- * Hook to fetch and reactively sync branding data (company name, logo URL)
- * from localStorage + the store-config API.
- *
- * Used by StorefrontNavbar and admin layout to show dynamic branding.
- */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 
-interface BrandingData {
+export interface BrandingData {
   companyName: string;
   logoUrl: string;
 }
 
-/**
- * Returns the current branding (company name + logo URL).
- * - Reads from localStorage immediately for instant paint.
- * - Fetches /api/admin/store-config in the background and updates state.
- * - Listens for `storage` events so changes in settings propagate live.
- */
+function sanitizeCompanyName(raw: string | null | undefined): string {
+  if (!raw || typeof raw !== "string") return "Office Store";
+  const cleaned = raw.replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, 80);
+  return cleaned || "Office Store";
+}
+
 export function useBranding(): BrandingData {
   const [companyName, setCompanyName] = useState<string>("Office Store");
   const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
-    // 1. Instant hydration from localStorage
-    const savedName = localStorage.getItem("app_company_name");
-    if (savedName) setCompanyName(savedName);
-    const savedLogo = localStorage.getItem("app_logo_url");
-    if (savedLogo) setLogoUrl(savedLogo);
+    const syncFromStorage = () => {
+      try {
+        const savedName = localStorage.getItem("app_company_name");
+        if (savedName) {
+          setCompanyName(sanitizeCompanyName(savedName));
+        }
+        const savedLogo = localStorage.getItem("app_logo_url");
+        if (savedLogo) {
+          setLogoUrl(sanitizeSafeUrl(savedLogo) || "");
+        } else {
+          setLogoUrl("");
+        }
+      } catch {
+        // Ignore restricted storage access
+      }
+    };
 
-    // 2. Fetch latest from API
+    syncFromStorage();
+
     fetch("/api/admin/store-config")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.config?.company_name) {
-          setCompanyName(data.config.company_name);
-          localStorage.setItem("app_company_name", data.config.company_name);
+        const conf = data?.config;
+        if (!conf) return;
+
+        if (conf.company_name) {
+          const cleanName = sanitizeCompanyName(conf.company_name);
+          setCompanyName(cleanName);
+          try {
+            localStorage.setItem("app_company_name", cleanName);
+          } catch {}
         }
-        if (data?.config?.logo_url !== undefined) {
-          setLogoUrl(data.config.logo_url);
-          localStorage.setItem("app_logo_url", data.config.logo_url);
+
+        if (conf.logo_url !== undefined) {
+          const safeLogo = sanitizeSafeUrl(conf.logo_url) || "";
+          setLogoUrl(safeLogo);
+          try {
+            localStorage.setItem("app_logo_url", safeLogo);
+          } catch {}
         }
       })
       .catch(() => {
-        // Branding is non-critical — fail silently and keep localStorage values
+        // Ignore network errors and keep cached/default branding
       });
 
-    // 3. Live sync when settings page saves
-    const handleStorageUpdate = () => {
-      const n = localStorage.getItem("app_company_name");
-      if (n) setCompanyName(n);
-      const l = localStorage.getItem("app_logo_url");
-      if (l !== null) setLogoUrl(l);
-    };
-
-    window.addEventListener("storage", handleStorageUpdate);
-    return () => window.removeEventListener("storage", handleStorageUpdate);
+    window.addEventListener("storage", syncFromStorage);
+    return () => window.removeEventListener("storage", syncFromStorage);
   }, []);
 
   return { companyName, logoUrl };

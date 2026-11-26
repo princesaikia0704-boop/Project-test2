@@ -32,6 +32,23 @@ declare global {
   var _drizzleTxDb: NeonDatabase<typeof schema> | any | undefined;
 }
 
+function enforceTlsDatabaseUrl(rawUrl: string): { url: string; isLocalhost: boolean } {
+  const parsed = new URL(rawUrl);
+  const host = parsed.hostname.toLowerCase();
+  const isLocalhost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+
+  if (!isLocalhost) {
+    const sslMode = parsed.searchParams.get("sslmode")?.toLowerCase();
+    if (sslMode === "disable" || sslMode === "allow" || sslMode === "prefer") {
+      throw new Error("Insecure PostgreSQL sslmode is prohibited for remote connections");
+    }
+    if (!sslMode) {
+      parsed.searchParams.set("sslmode", "require");
+    }
+  }
+  return { url: parsed.toString(), isLocalhost };
+}
+
 function initializeDatabase() {
   // 1. Zero-Crash Mock Fallback
   if (isDatabaseMocked()) {
@@ -47,10 +64,31 @@ function initializeDatabase() {
     };
   }
 
-  // 2. Production / Live Neon PostgreSQL Setup
-  const connectionString =
+  // 2. Production / Live Neon PostgreSQL Setup with SSL/TLS Enforcement
+  const rawConnectionString =
     process.env.DATABASE_URL_POOLED ||
-    process.env.DATABASE_URL!;
+    process.env.DATABASE_URL ||
+    "";
+
+  if (!rawConnectionString) {
+    // Allow Next.js build-time module evaluation when DB URL is injected at runtime,
+    // while throwing clear errors if queried without a valid connection string.
+    const unconfiguredProxy = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error("DATABASE_URL is not configured for live PostgreSQL mode");
+        },
+      }
+    );
+    return {
+      db: unconfiguredProxy as NeonHttpDatabase<typeof schema>,
+      txDb: unconfiguredProxy as NeonDatabase<typeof schema>,
+      pool: null,
+    };
+  }
+
+  const { url: connectionString, isLocalhost } = enforceTlsDatabaseUrl(rawConnectionString);
 
   // HTTP Driver: Ultra-fast read queries & edge operations
   if (!globalThis._drizzleHttpDb) {
@@ -67,6 +105,7 @@ function initializeDatabase() {
         max: process.env.NODE_ENV === "production" ? 10 : 5,
         connectionTimeoutMillis: 5000,
         idleTimeoutMillis: 30000,
+        ...(isLocalhost ? {} : { ssl: { rejectUnauthorized: true } }),
       });
     globalThis._neonPool = pool;
     globalThis._drizzleTxDb = drizzleServerless(pool, { schema });

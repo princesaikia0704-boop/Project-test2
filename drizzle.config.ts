@@ -33,10 +33,25 @@ function loadEnv() {
 
 loadEnv();
 
-const dbUrl =
+const rawDbUrl =
   process.env.DATABASE_URL_UNPOOLED ||
   process.env.DATABASE_URL ||
   process.env.DATABASE_URL_POOLED;
+
+function ensureTlsDbUrl(urlStr: string): string {
+  try {
+    const parsed = new URL(urlStr);
+    const host = parsed.hostname.toLowerCase();
+    if (host !== "localhost" && host !== "127.0.0.1" && !parsed.searchParams.has("sslmode")) {
+      parsed.searchParams.set("sslmode", "require");
+    }
+    return parsed.toString();
+  } catch {
+    return urlStr;
+  }
+}
+
+const dbUrl = rawDbUrl ? ensureTlsDbUrl(rawDbUrl) : undefined;
 
 if (!dbUrl) {
   console.warn(

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { orderRepo } from "@/repositories/order.repo";
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
-    const userRole = req.headers.get("x-user-role");
-    const departmentId =
-      req.headers.get("x-user-department-id") ||
-      req.headers.get("x-department-id");
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
 
-    const deptFilter = userRole === "ADMIN" ? undefined : departmentId || undefined;
+    // Managers are strictly scoped to their own department; only Admins see all
+    const deptFilter = authUser.role === "ADMIN" ? undefined : authUser.departmentId;
     const approvals = await orderRepo.listPendingApprovals(deptFilter);
 
     return NextResponse.json(

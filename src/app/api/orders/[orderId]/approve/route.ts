@@ -1,20 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { approveOrder, rejectOrder, DomainError } from "@/services/order.service";
 import { orderRepo } from "@/repositories/order.repo";
+import { orderDecisionSchema, safeIdentifierSchema } from "@/lib/validators/order.schema";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
 export const POST = withApiReliability(
-  async (req: NextRequest, context?: { params: Promise<{ orderId: string }> | { orderId: string } }) => {
-    const params = context?.params ? await context.params : null;
-    const orderId = params?.orderId;
-
-    if (!orderId) {
-      return createErrorResponse("InvalidOrderId", "Order ID is required", 400);
+  async (
+    req: NextRequest,
+    context?: { params: Promise<{ orderId: string }> | { orderId: string } }
+  ) => {
+    const authUser = await getRequestAuth(req);
+    if (!authUser || (authUser.role !== "MANAGER" && authUser.role !== "ADMIN")) {
+      return createErrorResponse("Forbidden", "Insufficient role permissions", 403);
     }
 
-    let body: any;
+    const params = context?.params ? await context.params : null;
+    const orderIdCheck = safeIdentifierSchema.safeParse(params?.orderId);
+    if (!orderIdCheck.success) {
+      return createErrorResponse("InvalidOrderId", "Valid order ID is required", 400);
+    }
+    const orderId = orderIdCheck.data;
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "InvalidOrderPayload",
@@ -23,28 +34,55 @@ export const POST = withApiReliability(
       );
     }
 
-    if (body.decision !== "APPROVE" && body.decision !== "REJECT") {
-      return createErrorResponse(
-        "InvalidDecision",
-        "Decision must be either 'APPROVE' or 'REJECT'",
-        400
-      );
-    }
-
-    if (body.decision === "REJECT" && (!body.comment || typeof body.comment !== "string" || !body.comment.trim())) {
-      return createErrorResponse(
-        "MissingRejectionReason",
-        "Rejection reason comment is required",
-        400
-      );
+    const parsedDecision = orderDecisionSchema.safeParse(rawBody);
+    if (!parsedDecision.success) {
+      const issue = parsedDecision.error.issues[0];
+      const msg = issue?.message || "Invalid approval payload";
+      const code = msg.toLowerCase().includes("reason")
+        ? "MissingRejectionReason"
+        : "InvalidDecision";
+      return createErrorResponse(code, msg, 400);
     }
 
     const order = await orderRepo.findByIdWithItems(orderId);
     if (!order) {
+      return createErrorResponse("OrderNotFound", "Order not found", 404);
+    }
+
+    // Enforce department isolation for Managers & disallow self-approval
+    if (authUser.role === "MANAGER" && order.departmentId !== authUser.departmentId) {
+      logSecurityEvent({
+        event: "IDOR_ATTEMPT",
+        severity: "HIGH",
+        userId: authUser.id,
+        role: authUser.role,
+        ip: extractTrustedClientIp(req),
+        path: req.nextUrl?.pathname,
+        method: "POST",
+        reason: `Manager attempted cross-department order decision on ${orderId}`,
+      });
       return createErrorResponse(
-        "OrderNotFound",
-        `Order ${orderId} does not exist`,
-        404
+        "Forbidden",
+        "Cannot approve or reject orders outside your department",
+        403
+      );
+    }
+
+    if (order.userId === authUser.id) {
+      logSecurityEvent({
+        event: "PRIVILEGE_ESCALATION_ATTEMPT",
+        severity: "HIGH",
+        userId: authUser.id,
+        role: authUser.role,
+        ip: extractTrustedClientIp(req),
+        path: req.nextUrl?.pathname,
+        method: "POST",
+        reason: `User attempted self-approval on order ${orderId}`,
+      });
+      return createErrorResponse(
+        "Forbidden",
+        "Cannot approve or reject your own purchase order",
+        403
       );
     }
 
@@ -56,28 +94,31 @@ export const POST = withApiReliability(
       );
     }
 
-    const managerUserId = req.headers.get("x-user-id") || "manager";
+    const actorContext = {
+      role: authUser.role,
+      departmentId: authUser.departmentId,
+    };
 
     try {
-      if (body.decision === "APPROVE") {
-        await approveOrder(orderId, managerUserId, body.comment);
+      if (parsedDecision.data.decision === "APPROVE") {
+        await approveOrder(orderId, authUser.id, parsedDecision.data.comment, actorContext);
         return NextResponse.json(
           {
             success: true,
             orderId,
             status: "APPROVED",
-            ...(body.comment ? { comment: body.comment } : {}),
+            ...(parsedDecision.data.comment ? { comment: parsedDecision.data.comment } : {}),
           },
           { status: 200 }
         );
       } else {
-        await rejectOrder(orderId, managerUserId, body.comment.trim());
+        await rejectOrder(orderId, authUser.id, parsedDecision.data.comment, actorContext);
         return NextResponse.json(
           {
             success: true,
             orderId,
             status: "REJECTED",
-            comment: body.comment.trim(),
+            comment: parsedDecision.data.comment,
           },
           { status: 200 }
         );

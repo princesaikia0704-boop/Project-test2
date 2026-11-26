@@ -20,6 +20,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 import { useImageUpload } from "@/hooks/useImageUpload";
 
 const BRAND_COLOR_PALETTE = [
@@ -95,10 +96,13 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      e.target.value = "";
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
+      e.target.value = "";
       return;
     }
 
@@ -423,7 +427,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
               <input
                 type="file"
                 data-testid="logo-file-upload-input"
-                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 className="hidden"
                 disabled={isUploading}
                 onChange={handleLocalFileUpload}
@@ -442,7 +446,7 @@ export const DynamicRuleBuilder: React.FC<DynamicRuleBuilderProps> = ({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   data-testid="rule-builder-logo-preview"
-                  src={logoUrl.trim()}
+                  src={sanitizeSafeUrl(logoUrl.trim()) || ""}
                   alt="Logo preview"
                   className="w-10 h-10 object-contain rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 shrink-0"
                   onError={(e) => {

@@ -2,12 +2,19 @@
 
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ClerkProvider } from "@clerk/nextjs";
 
 /**
  * Global application providers wrapper.
- * Mounts TanStack React Query Client Provider with caching and retry defaults.
+ * Mounts TanStack React Query Client Provider and conditional ClerkProvider when configured.
  */
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  clerkEnabled = false,
+}: {
+  children: React.ReactNode;
+  clerkEnabled?: boolean;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -21,5 +28,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  const tree = <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+
+  if (!clerkEnabled) {
+    return tree;
+  }
+
+  return <ClerkProvider>{tree}</ClerkProvider>;
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
 import { formatCurrency } from "@/lib/utils";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 import {
   Plus,
   Minus,
@@ -99,12 +100,14 @@ export default function CartPage() {
               Cart Items ({items.length})
             </div>
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {items.map(({ product, quantity }) => (
+              {items.map(({ product, quantity }) => {
+                const safeImageUrl = sanitizeSafeUrl(product.imageUrl);
+                return (
                 <div key={product.id} className="p-4 flex items-center gap-4">
                   <div className="relative w-16 h-16 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
-                    {product.imageUrl ? (
+                    {safeImageUrl ? (
                       <Image
-                        src={product.imageUrl}
+                        src={safeImageUrl}
                         alt={product.name}
                         fill
                         className="object-cover"
@@ -159,7 +162,8 @@ export default function CartPage() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -8,16 +8,18 @@ import { CartDrawer } from "@/components/storefront/CartDrawer";
 import { ShoppingBag, Briefcase } from "lucide-react";
 import { PersonaSwitcher } from "@/components/shared/PersonaSwitcher";
 import { useBranding } from "@/hooks/useBranding";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 
 export const StorefrontNavbar: React.FC = () => {
   const pathname = usePathname();
   const { totalItemCount, isDrawerOpen, openDrawer, closeDrawer } = useCart();
   const { companyName, logoUrl } = useBranding();
+  const safeLogoUrl = sanitizeSafeUrl(logoUrl);
   const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     setLogoError(false);
-  }, [logoUrl]);
+  }, [safeLogoUrl]);
 
   const navLinks = [
     { href: "/", label: "Catalog" },
@@ -33,10 +35,10 @@ export const StorefrontNavbar: React.FC = () => {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2.5 font-black text-slate-900 dark:text-white text-lg">
               <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700 rounded-lg flex items-center justify-center text-white overflow-hidden shrink-0">
-                {logoUrl && !logoError ? (
+                {safeLogoUrl && !logoError ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={logoUrl}
+                    src={safeLogoUrl}
                     alt={companyName}
                     className="w-full h-full object-contain p-1"
                     onError={() => setLogoError(true)}
@@ -61,11 +63,10 @@ export const StorefrontNavbar: React.FC = () => {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      isActive
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isActive
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white"
                         : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800"
-                    }`}
+                      }`}
                   >
                     {link.label}
                   </Link>

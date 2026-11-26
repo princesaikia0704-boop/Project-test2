@@ -7,6 +7,7 @@ import { asc, desc, eq, and, ilike, or, inArray, sql } from "drizzle-orm";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { Product, NewProduct } from "@/lib/db/schema";
 import { isDatabaseMocked } from "@/lib/mock/utils";
+import { escapeLikePattern } from "@/lib/security/url";
 
 export interface ListProductsOptions {
   categoryId?: string;
@@ -65,7 +66,7 @@ export class ProductRepository implements IProductRepository {
       conditions.push(eq(schema.products.categoryId, options.categoryId));
     }
     if (options?.search) {
-      const q = `%${options.search}%`;
+      const q = `%${escapeLikePattern(options.search)}%`;
       conditions.push(
         or(
           ilike(schema.products.name, q),
@@ -89,8 +90,8 @@ export class ProductRepository implements IProductRepository {
     if (whereClause) query.where(whereClause);
     query.orderBy(orderByClause);
 
-    if (options?.limit) query.limit(options.limit);
-    if (options?.offset) query.offset(options.offset);
+    query.limit(Math.min(Math.max(1, options?.limit ?? 100), 500));
+    if (options?.offset) query.offset(Math.max(0, options.offset));
 
     const products = await query;
 
@@ -164,7 +165,7 @@ export class ProductRepository implements IProductRepository {
       return allActive.products;
     }
 
-    const q = `%${query.trim()}%`;
+    const q = `%${escapeLikePattern(query.trim())}%`;
     const rows = await db
       .select()
       .from(schema.products)

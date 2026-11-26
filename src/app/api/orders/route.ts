@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { createOrderWithACID, DomainError } from "@/services/order.service";
 import { orderRepo } from "@/repositories/order.repo";
-import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
+import { createOrderSchema } from "@/lib/validators/order.schema";
 
 export const POST = withApiReliability(
   async (req: NextRequest) => {
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
     const idempHeader =
       req.headers.get("idempotency-key") || req.headers.get("Idempotency-Key");
 
@@ -17,9 +22,9 @@ export const POST = withApiReliability(
       );
     }
 
-    let body: any;
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "InvalidOrderPayload",
@@ -28,58 +33,24 @@ export const POST = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
+    const parsed = createOrderSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0];
+      const isQuantityErr = firstIssue?.path.includes("quantity");
       return createErrorResponse(
-        "InvalidOrderPayload",
-        "Request body cannot be empty",
+        isQuantityErr ? "InvalidQuantity" : "InvalidOrderPayload",
+        firstIssue?.message || "Invalid order payload",
         400
       );
     }
-
-    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-      return createErrorResponse(
-        "InvalidOrderPayload",
-        "Cart items cannot be empty",
-        400
-      );
-    }
-
-    for (const item of body.items) {
-      if (
-        !item ||
-        typeof item !== "object" ||
-        !item.productId ||
-        typeof item.quantity !== "number" ||
-        item.quantity <= 0 ||
-        !Number.isInteger(item.quantity)
-      ) {
-        return createErrorResponse(
-          "InvalidQuantity",
-          "Item quantity must be greater than 0",
-          400
-        );
-      }
-    }
-
-    const rawUserId =
-      req.headers.get("x-user-id") ||
-      req.cookies.get("mock_persona")?.value ||
-      "user-alice-emp";
-
-    const rawDepartmentId =
-      req.headers.get("x-user-department-id") ||
-      req.headers.get("x-department-id") ||
-      "dept-eng";
-
-    const userId = normalizeUserUuid(rawUserId);
-    const departmentId = normalizeDepartmentUuid(rawDepartmentId);
 
     try {
+      // Strictly bind order ownership and budget department to server-verified session
       const result = await createOrderWithACID({
-        userId,
-        departmentId,
-        items: body.items,
-        notes: body.notes || null,
+        userId: authUser.id,
+        departmentId: authUser.departmentId,
+        items: parsed.data.items,
+        notes: parsed.data.notes || null,
         idempotencyKey: idempHeader.trim(),
       });
 
@@ -106,13 +77,12 @@ export const POST = withApiReliability(
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
-    const rawUserId =
-      req.headers.get("x-user-id") ||
-      req.cookies.get("mock_persona")?.value ||
-      "user-alice-emp";
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
 
-    const userId = normalizeUserUuid(rawUserId);
-    const orders = await orderRepo.listByUserId(userId);
+    const orders = await orderRepo.listByUserId(authUser.id);
 
     return NextResponse.json(
       {

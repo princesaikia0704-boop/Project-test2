@@ -1,22 +1,31 @@
 /**
  * Corporate Office Store - CSV Inventory Import Worker
- * Receives async jobs from Upstash QStash to bulk-import products from a CSV file
- * stored in Cloudflare R2. Processes rows in batches of 200 with upsert semantics.
+ * Security Hardening:
+ * - Unconditional fail-closed QStash HMAC verification
+ * - SSRF Guard on payload.fileUrl (HTTPS + allowlisted R2 host + DNS private-IP check + redirect: error)
+ * - Bounded download size (10MB cap) and CSV schema/row validation
+ * - Safe URL validation on image_url & formula character neutralization
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { parse } from "csv-parse/sync";
 import { eq } from "drizzle-orm";
-import { db, txDb, schema } from "@/lib/db";
+import { z } from "zod";
+import { txDb, schema, mockDataStore } from "@/lib/db";
 import { verifySignatureAppRouter } from "@/lib/queue/qstash";
 import { categoryRepo } from "@/repositories/category.repo";
 import { fetchWithTimeout } from "@/lib/http/fetch-with-timeout";
 import { isDatabaseMocked } from "@/lib/mock/utils";
-import { mockDataStore } from "@/lib/db";
+import { validateExternalStorageUrl } from "@/lib/security/ssrf";
+import { sanitizeSafeUrl } from "@/lib/security/url";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
-// ── Constants ────────────────────────────────────────────────────────────────
 const BATCH_SIZE = 200;
 const CSV_FETCH_TIMEOUT_MS = 30_000;
+const MAX_CSV_BYTES = 10 * 1024 * 1024;
+const MAX_CSV_ROWS = 10_000;
+const PG_MAX_INT = 2_147_483_647;
 
 const EXPECTED_COLUMNS = [
   "name",
@@ -27,11 +36,10 @@ const EXPECTED_COLUMNS = [
   "image_url",
 ] as const;
 
-// ── Types ────────────────────────────────────────────────────────────────────
-interface CsvImportPayload {
-  fileUrl: string;
-  uploadedBy: string;
-}
+const csvImportPayloadSchema = z.object({
+  fileUrl: z.string().trim().min(1, "Missing fileUrl").max(2048),
+  uploadedBy: z.string().trim().min(1, "Missing uploadedBy").max(100),
+});
 
 interface CsvRow {
   name: string;
@@ -48,57 +56,114 @@ interface ImportResult {
   errors: string[];
 }
 
-// ── POST Handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const clientIp = extractTrustedClientIp(req);
+
   try {
-    // 1. Read raw body for signature verification
     const rawBody = await req.text();
 
-    // 2. Verify QStash signature if signing key is configured
-    if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
-      const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
-      if (!isValid) {
-        console.error("[csv-import] QStash signature verification failed:", error);
-        return NextResponse.json(
-          { error: "InvalidSignature", message: error ?? "Signature verification failed" },
-          { status: 401 }
-        );
-      }
+    // 1. Unconditional QStash signature verification (fail-closed)
+    const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
+    if (!isValid) {
+      logSecurityEvent({
+        event: "AUTH_SESSION_INVALID",
+        severity: "HIGH",
+        ip: clientIp,
+        path: "/api/workers/csv-import",
+        method: "POST",
+        reason: error ?? "QStash signature verification failed",
+      });
+      return NextResponse.json(
+        { error: "InvalidSignature", message: "Signature verification failed" },
+        { status: 401 }
+      );
     }
 
-    // 3. Parse payload
-    const payload: CsvImportPayload = JSON.parse(rawBody);
-
-    if (!payload.fileUrl || typeof payload.fileUrl !== "string") {
+    // 2. Parse & validate payload with Zod
+    let rawJson: unknown;
+    try {
+      rawJson = JSON.parse(rawBody);
+    } catch {
       return NextResponse.json(
-        { error: "BadRequest", message: "Missing or invalid fileUrl" },
+        { error: "BadRequest", message: "Invalid JSON payload" },
         { status: 400 }
       );
     }
 
-    if (!payload.uploadedBy || typeof payload.uploadedBy !== "string") {
+    const parsedPayload = csvImportPayloadSchema.safeParse(rawJson);
+    if (!parsedPayload.success) {
       return NextResponse.json(
-        { error: "BadRequest", message: "Missing or invalid uploadedBy" },
+        {
+          error: "BadRequest",
+          message: parsedPayload.error.issues[0]?.message || "Invalid import payload",
+        },
         { status: 400 }
       );
     }
 
-    // 4. Fetch CSV file from R2
-    const csvResponse = await fetchWithTimeout(payload.fileUrl, {
+    // 3. SSRF Guard: verify URL points strictly to allowlisted HTTPS storage host & public IP
+    let validatedUrl: URL;
+    try {
+      validatedUrl = await validateExternalStorageUrl(parsedPayload.data.fileUrl);
+    } catch (ssrfErr: any) {
+      logSecurityEvent({
+        event: "SSRF_BLOCKED",
+        severity: "CRITICAL",
+        userId: parsedPayload.data.uploadedBy,
+        ip: clientIp,
+        path: "/api/workers/csv-import",
+        method: "POST",
+        reason: ssrfErr?.message || "Blocked external fetch URL",
+      });
+      return NextResponse.json(
+        { error: "InvalidStorageUrl", message: "Provided fileUrl is not permitted" },
+        { status: 400 }
+      );
+    }
+
+    // 4. Fetch CSV from R2 without following HTTP redirects
+    const csvResponse = await fetchWithTimeout(validatedUrl.toString(), {
       timeoutMs: CSV_FETCH_TIMEOUT_MS,
+      redirect: "error",
     });
 
     if (!csvResponse.ok) {
       return NextResponse.json(
-        {
-          error: "FetchFailed",
-          message: `Failed to fetch CSV: HTTP ${csvResponse.status} ${csvResponse.statusText}`,
-        },
-        { status: 500 }
+        { error: "FetchFailed", message: "Failed to retrieve CSV file from storage" },
+        { status: 502 }
       );
     }
 
-    const csvText = await csvResponse.text();
+    const contentLength = Number(csvResponse.headers.get("content-length") || "0");
+    if (Number.isFinite(contentLength) && contentLength > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "PayloadTooLarge", message: "CSV file exceeds 10MB limit" },
+        { status: 400 }
+      );
+    }
+
+    const contentType = (csvResponse.headers.get("content-type") || "").toLowerCase();
+    if (
+      contentType &&
+      !contentType.includes("text/csv") &&
+      !contentType.includes("text/plain") &&
+      !contentType.includes("application/csv") &&
+      !contentType.includes("application/octet-stream")
+    ) {
+      return NextResponse.json(
+        { error: "DisallowedFileType", message: "Unexpected CSV Content-Type from storage" },
+        { status: 400 }
+      );
+    }
+
+    const buf = Buffer.from(await csvResponse.arrayBuffer());
+    if (buf.length > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "PayloadTooLarge", message: "CSV file exceeds 10MB limit" },
+        { status: 400 }
+      );
+    }
+    const csvText = buf.toString("utf-8");
 
     // 5. Parse CSV
     let rows: CsvRow[];
@@ -109,14 +174,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         trim: true,
         relax_column_count: true,
       }) as CsvRow[];
-    } catch (parseError: any) {
+    } catch {
       return NextResponse.json(
         {
           error: "CsvParseError",
-          message: `Failed to parse CSV: ${parseError.message}`,
+          message: "Failed to parse CSV file structure",
           processed: 0,
           failed: 0,
-          errors: [parseError.message],
+          errors: ["Invalid CSV format"],
         },
         { status: 400 }
       );
@@ -126,11 +191,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ processed: 0, failed: 0, errors: [] }, { status: 200 });
     }
 
-    // 6. Validate that required columns exist
+    if (rows.length > MAX_CSV_ROWS) {
+      return NextResponse.json(
+        {
+          error: "PayloadTooLarge",
+          message: `CSV exceeds maximum of ${MAX_CSV_ROWS} rows per job`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 6. Validate required columns exist
     const firstRowKeys = Object.keys(rows[0]).map((k) => k.toLowerCase().trim());
-    const missingColumns = EXPECTED_COLUMNS.filter(
-      (col) => !firstRowKeys.includes(col)
-    );
+    const missingColumns = EXPECTED_COLUMNS.filter((col) => !firstRowKeys.includes(col));
 
     if (missingColumns.length > 0) {
       return NextResponse.json(
@@ -145,15 +218,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 7. Pre-load category slug → ID map for fast lookups
     const categories = await categoryRepo.listCategories({ isActive: true });
-    const categorySlugMap = new Map(
-      categories.map((c) => [c.slug.toLowerCase(), c.id])
-    );
+    const categorySlugMap = new Map(categories.map((c) => [c.slug.toLowerCase(), c.id]));
 
-    // 8. Process rows in batches
     const result: ImportResult = { processed: 0, failed: 0, errors: [] };
-
     for (let i = 0; i < rows.length; i += BATCH_SIZE) {
       const batch = rows.slice(i, i + BATCH_SIZE);
       const batchErrors = await processBatch(batch, categorySlugMap, i);
@@ -163,7 +231,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       result.errors.push(...batchErrors);
     }
 
-    // Cap errors to prevent massive response payloads
     if (result.errors.length > 100) {
       const totalErrors = result.errors.length;
       result.errors = result.errors.slice(0, 100);
@@ -172,21 +239,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(result, { status: 200 });
   } catch (error: any) {
-    console.error("[csv-import] Worker error:", error);
+    logSecurityEvent({
+      event: "UNHANDLED_SERVER_ERROR",
+      severity: "HIGH",
+      ip: clientIp,
+      path: "/api/workers/csv-import",
+      method: "POST",
+      reason: error?.message ?? "CSV import worker error",
+    });
     return NextResponse.json(
       {
         error: "InternalServerError",
-        message: error.message ?? "An unexpected error occurred during CSV import",
+        message: "An unexpected error occurred during CSV import",
         processed: 0,
         failed: 0,
-        errors: [error.message ?? "Unknown error"],
+        errors: ["CSV import processing failed"],
       },
       { status: 500 }
     );
   }
 }
 
-// ── Batch Processor ──────────────────────────────────────────────────────────
 async function processBatch(
   batch: CsvRow[],
   categorySlugMap: Map<string, string>,
@@ -195,9 +268,8 @@ async function processBatch(
   const errors: string[] = [];
 
   if (isDatabaseMocked()) {
-    // Mock mode: process rows individually via the mock data store
     for (let j = 0; j < batch.length; j++) {
-      const rowIndex = startIndex + j + 2; // +2 for 1-indexed + header row
+      const rowIndex = startIndex + j + 2;
       const row = batch[j];
       try {
         const validated = validateRow(row, categorySlugMap, rowIndex);
@@ -206,7 +278,6 @@ async function processBatch(
           continue;
         }
 
-        // Upsert: check if product with same name exists
         const existing = findMockProductByName(validated.data!.name);
         if (existing) {
           mockDataStore.updateProduct(existing.id, {
@@ -227,14 +298,13 @@ async function processBatch(
             isActive: true,
           } as any);
         }
-      } catch (err: any) {
-        errors.push(`Row ${rowIndex}: ${err.message}`);
+      } catch {
+        errors.push(`Row ${rowIndex}: Failed to save row`);
       }
     }
     return errors;
   }
 
-  // Live database mode: batch upsert within a single transaction
   try {
     await txDb.transaction(async (tx: any) => {
       for (let j = 0; j < batch.length; j++) {
@@ -248,7 +318,6 @@ async function processBatch(
             continue;
           }
 
-          // Upsert: check if product with matching name exists
           const existingRows = await tx
             .select()
             .from(schema.products)
@@ -256,7 +325,6 @@ async function processBatch(
             .limit(1);
 
           if (existingRows.length > 0) {
-            // Update existing product
             await tx
               .update(schema.products)
               .set({
@@ -269,7 +337,6 @@ async function processBatch(
               })
               .where(eq(schema.products.id, existingRows[0].id));
           } else {
-            // Insert new product
             await tx.insert(schema.products).values({
               name: validated.data!.name,
               description: validated.data!.description,
@@ -280,22 +347,18 @@ async function processBatch(
               isActive: true,
             });
           }
-        } catch (err: any) {
-          errors.push(`Row ${rowIndex}: ${err.message}`);
+        } catch {
+          errors.push(`Row ${rowIndex}: Failed to persist product row`);
         }
       }
     });
-  } catch (txError: any) {
-    // If the entire transaction fails, mark all rows as failed
-    errors.push(
-      `Batch starting at row ${startIndex + 2} failed: ${txError.message}`
-    );
+  } catch {
+    errors.push(`Batch starting at row ${startIndex + 2} failed`);
   }
 
   return errors;
 }
 
-// ── Row Validation ───────────────────────────────────────────────────────────
 interface ValidatedRow {
   name: string;
   description: string;
@@ -305,64 +368,62 @@ interface ValidatedRow {
   imageUrl: string | null;
 }
 
+function stripFormulaLead(val: string): string {
+  return val.replace(/^[=+\-@\t\r]+/, "").trim();
+}
+
 function validateRow(
   row: CsvRow,
   categorySlugMap: Map<string, string>,
   rowIndex: number
 ): { data?: ValidatedRow; error?: string } {
-  // Name is required
-  const name = (row.name ?? "").trim();
+  const name = stripFormulaLead(row.name ?? "").slice(0, 255);
   if (!name) {
-    return { error: `Row ${rowIndex}: Missing required field "name"` };
+    return { error: `Row ${rowIndex}: Missing or invalid field "name"` };
   }
 
-  // Description (optional, defaults to empty)
-  const description = (row.description ?? "").trim();
+  const description = stripFormulaLead(row.description ?? "").slice(0, 2000);
 
-  // Price: parse as dollars, convert to cents
   const priceStr = (row.price ?? "").trim().replace(/[$,]/g, "");
   const priceFloat = parseFloat(priceStr);
-  if (isNaN(priceFloat) || priceFloat < 0) {
-    return { error: `Row ${rowIndex}: Invalid price "${row.price}"` };
-  }
   const priceCents = Math.round(priceFloat * 100);
+  if (!Number.isFinite(priceFloat) || priceCents < 0 || priceCents > PG_MAX_INT) {
+    return { error: `Row ${rowIndex}: Invalid price` };
+  }
 
-  // Stock quantity
   const stockStr = (row.stock_quantity ?? "").trim();
   const stockQuantity = parseInt(stockStr, 10);
-  if (isNaN(stockQuantity) || stockQuantity < 0) {
-    return {
-      error: `Row ${rowIndex}: Invalid stock_quantity "${row.stock_quantity}"`,
-    };
+  if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > PG_MAX_INT) {
+    return { error: `Row ${rowIndex}: Invalid stock_quantity` };
   }
 
-  // Category slug → ID lookup
   const categorySlug = (row.category_slug ?? "").trim().toLowerCase();
   if (!categorySlug) {
     return { error: `Row ${rowIndex}: Missing required field "category_slug"` };
   }
   const categoryId = categorySlugMap.get(categorySlug);
   if (!categoryId) {
-    return {
-      error: `Row ${rowIndex}: Unknown category_slug "${row.category_slug}"`,
-    };
+    return { error: `Row ${rowIndex}: Unknown category_slug` };
   }
 
-  // Image URL (optional)
-  const imageUrl = (row.image_url ?? "").trim() || null;
+  const rawImageUrl = (row.image_url ?? "").trim();
+  let imageUrl: string | null = null;
+  if (rawImageUrl) {
+    imageUrl = sanitizeSafeUrl(rawImageUrl, { allowRelative: true, allowDataImage: false });
+    if (!imageUrl) {
+      return { error: `Row ${rowIndex}: Invalid or unsafe image_url` };
+    }
+  }
 
   return {
     data: { name, description, priceCents, stockQuantity, categoryId, imageUrl },
   };
 }
 
-// ── Mock Helpers ─────────────────────────────────────────────────────────────
 function findMockProductByName(name: string): { id: string } | null {
   try {
     const { products } = mockDataStore.getProducts({ search: name, limit: 100 });
-    const match = products.find(
-      (p: any) => p.name.toLowerCase() === name.toLowerCase()
-    );
+    const match = products.find((p: any) => p.name.toLowerCase() === name.toLowerCase());
     return match ? { id: match.id } : null;
   } catch {
     return null;

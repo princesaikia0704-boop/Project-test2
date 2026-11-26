@@ -25,40 +25,78 @@ export interface PresignedUploadResult {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB limit
 const PRESIGNED_URL_TTL = 900; // 15 minutes (900 seconds)
-const PROHIBITED_EXTENSIONS = [".sh", ".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"];
+const PROHIBITED_EXTENSIONS = [".sh", ".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs", ".html", ".htm", ".svg", ".php", ".jsp"];
+const ALLOWED_UPLOAD_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".csv", ".pdf"];
+const ALLOWED_CONTENT_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "text/csv",
+  "application/csv",
+  "application/pdf",
+  "application/octet-stream",
+];
 
 /**
  * Generates a presigned Cloudflare R2 / S3 upload URL with security constraints:
- * size caps (10MB), expiration TTL (15 min), and executable extension blocking.
- *
- * @param input - Filename, file size in bytes, MIME content type, and admin user
- * @returns Object key, presigned upload URL, and expiry duration
- * @throws {DomainError} If filename is missing, file is too large, or file extension is prohibited
+ * extension allowlist, MIME allowlist, size caps (10MB), expiration TTL (15 min),
+ * path traversal protection, and executable extension blocking.
  */
 export async function generatePresignedUploadUrl(
   input: PresignedUploadInput
 ): Promise<PresignedUploadResult> {
-  // 1. Validation: Filename presence & non-empty string
+  // 1. Validation: Filename presence & non-empty string + traversal rejection
   if (!input.filename || typeof input.filename !== "string" || input.filename.trim().length === 0) {
     throw new DomainError("MissingFilename", "Filename is required", 400);
   }
 
-  const cleanBaseName = input.filename.replace(/^.*[\\/]/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+  if (
+    input.filename.includes("\0") ||
+    input.filename.includes("..") ||
+    input.filename.includes("/") ||
+    input.filename.includes("\\")
+  ) {
+    throw new DomainError("InvalidFilename", "Path traversal characters are prohibited in filename", 400);
+  }
+
+  const cleanBaseName = input.filename.trim().replace(/^.*[\\/]/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
   if (!cleanBaseName || cleanBaseName.trim().length === 0) {
     throw new DomainError("MissingFilename", "Valid filename is required", 400);
   }
 
-  // 2. Validation: File size limit (10MB maximum)
-  if (input.fileSizeBytes !== undefined && input.fileSizeBytes > MAX_FILE_SIZE_BYTES) {
-    throw new DomainError("PayloadTooLarge", "File size exceeds 10MB limit", 400);
+  // 2. Validation: File size limit (10MB maximum, reject NaN/negative/non-integer)
+  if (input.fileSizeBytes !== undefined) {
+    if (
+      typeof input.fileSizeBytes !== "number" ||
+      !Number.isFinite(input.fileSizeBytes) ||
+      input.fileSizeBytes <= 0
+    ) {
+      throw new DomainError("InvalidFileSize", "File size must be a positive integer", 400);
+    }
+    if (input.fileSizeBytes > MAX_FILE_SIZE_BYTES) {
+      throw new DomainError("PayloadTooLarge", "File size exceeds 10MB limit", 400);
+    }
   }
 
-  // 3. Validation: Prohibited executable file extensions
+  // 3. Validation: Prohibited extensions + strict allowlist
   const lowerFilename = cleanBaseName.toLowerCase();
   for (const ext of PROHIBITED_EXTENSIONS) {
     if (lowerFilename.endsWith(ext)) {
-      throw new DomainError("DisallowedFileType", "Executable files are prohibited", 400);
+      throw new DomainError("DisallowedFileType", "Executable or active-content files are prohibited", 400);
     }
+  }
+  const hasAllowedExt = ALLOWED_UPLOAD_EXTENSIONS.some((ext) => lowerFilename.endsWith(ext));
+  if (!hasAllowedExt) {
+    throw new DomainError(
+      "DisallowedFileType",
+      "Only PNG, JPG, JPEG, WebP, GIF, CSV, and PDF uploads are permitted",
+      400
+    );
+  }
+
+  if (input.contentType && !ALLOWED_CONTENT_TYPES.includes(input.contentType)) {
+    throw new DomainError("DisallowedContentType", "Unsupported upload Content-Type", 400);
   }
 
   // 4. Generate Unique Collision-Free Key
@@ -89,6 +127,7 @@ export async function generatePresignedUploadUrl(
     Bucket: process.env.R2_BUCKET_NAME!,
     Key: uniqueKey,
     ContentType: input.contentType || "application/octet-stream",
+    ...(input.fileSizeBytes !== undefined ? { ContentLength: input.fileSizeBytes } : {}),
   });
 
   const presignedUrl = await getSignedUrl(s3, command, { expiresIn: PRESIGNED_URL_TTL });

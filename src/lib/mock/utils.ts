@@ -44,10 +44,7 @@ export function isServiceMocked(
     case "neon":
       return isDatabaseMocked();
     case "clerk":
-      return (
-        isMockKey(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) ||
-        isMockKey(process.env.CLERK_SECRET_KEY)
-      );
+      return !isClerkConfigured();
     case "redis":
       return (
         isMockKey(process.env.UPSTASH_REDIS_REST_URL) ||
@@ -58,11 +55,38 @@ export function isServiceMocked(
     case "r2":
       return (
         isMockKey(process.env.R2_ACCESS_KEY_ID) ||
-        isMockKey(process.env.R2_SECRET_ACCESS_KEY)
+        isMockKey(process.env.R2_SECRET_ACCESS_KEY) ||
+        isMockKey(process.env.R2_ACCOUNT_ID) ||
+        isMockKey(process.env.R2_BUCKET_NAME)
       );
     case "resend":
       return isMockKey(process.env.RESEND_API_KEY);
     default:
       return false;
   }
+}
+
+/**
+ * Verifies that Clerk has non-placeholder, syntactically valid publishable and secret keys
+ * and that mock services are not forcing placeholder mode.
+ */
+export function isClerkConfigured(): boolean {
+  if (process.env.ENABLE_MOCK_SERVICES === "true") return false;
+  const pk = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
+  const sk = process.env.CLERK_SECRET_KEY?.trim();
+  if (!pk || !sk || isMockKey(pk) || isMockKey(sk)) return false;
+  return (
+    /^pk_(test|live)_[A-Za-z0-9+/=_-]{16,}$/.test(pk) &&
+    /^sk_(test|live)_[A-Za-z0-9_-]{16,}$/.test(sk)
+  );
+}
+
+/**
+ * Demo persona switching is strictly disabled in production unless explicitly
+ * opted in via ALLOW_DEMO_AUTH="true" (and never when Clerk is active).
+ */
+export function isDemoAuthEnabled(): boolean {
+  if (isClerkConfigured()) return false;
+  if (process.env.ALLOW_DEMO_AUTH === "true") return true;
+  return process.env.NODE_ENV !== "production" && process.env.ENABLE_MOCK_SERVICES === "true";
 }

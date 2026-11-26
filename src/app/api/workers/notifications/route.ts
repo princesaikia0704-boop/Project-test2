@@ -1,55 +1,49 @@
 /**
  * Corporate Office Store - Notification Dispatch Worker
- * Receives async notification jobs from Upstash QStash and dispatches via
- * email (Resend) and/or Slack webhooks. Currently operates in log-only mock mode.
+ * Unconditional fail-closed QStash HMAC verification + strict Zod payload validation.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { verifySignatureAppRouter } from "@/lib/queue/qstash";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-type NotificationType =
-  | "ORDER_CREATED"
-  | "ORDER_APPROVED"
-  | "ORDER_REJECTED"
-  | "LOW_STOCK_ALERT"
-  | "APPROVAL_NEEDED";
+const notificationPayloadSchema = z.object({
+  type: z.enum([
+    "ORDER_CREATED",
+    "ORDER_APPROVED",
+    "ORDER_REJECTED",
+    "LOW_STOCK_ALERT",
+    "APPROVAL_NEEDED",
+  ]),
+  orderId: z.string().trim().max(100).optional(),
+  status: z.string().trim().max(50).optional(),
+  userId: z.string().trim().max(100).optional(),
+  productName: z.string().trim().max(255).optional(),
+  remainingStock: z.number().int().min(0).optional(),
+  orderNumber: z.string().trim().max(100).optional(),
+  rejectionReason: z.string().trim().max(1000).optional(),
+  approverEmail: z.string().trim().email().max(255).optional(),
+});
 
-interface NotificationPayload {
-  type: NotificationType;
-  orderId?: string;
-  status?: string;
-  userId?: string;
-  productName?: string;
-  remainingStock?: number;
-  orderNumber?: string;
-  rejectionReason?: string;
-  approverEmail?: string;
-  [key: string]: unknown;
-}
+type NotificationPayload = z.infer<typeof notificationPayloadSchema>;
 
-interface NotificationResult {
-  sent: boolean;
-  channel: string;
-  type: string;
-}
-
-// ── Notification Templates ───────────────────────────────────────────────────
 const NOTIFICATION_TEMPLATES: Record<
-  NotificationType,
+  NotificationPayload["type"],
   (payload: NotificationPayload) => { subject: string; body: string }
 > = {
   ORDER_CREATED: (p) => ({
-    subject: `Order #${p.orderNumber ?? p.orderId} Submitted`,
-    body: `Your order #${p.orderNumber ?? p.orderId} has been submitted and is awaiting approval.`,
+    subject: `Order #${p.orderNumber ?? p.orderId ?? "N/A"} Submitted`,
+    body: `Your order #${p.orderNumber ?? p.orderId ?? "N/A"} has been submitted and is awaiting approval.`,
   }),
   ORDER_APPROVED: (p) => ({
-    subject: `Order #${p.orderNumber ?? p.orderId} Approved`,
-    body: `Your order #${p.orderNumber ?? p.orderId} has been approved and will be fulfilled shortly.`,
+    subject: `Order #${p.orderNumber ?? p.orderId ?? "N/A"} Approved`,
+    body: `Your order #${p.orderNumber ?? p.orderId ?? "N/A"} has been approved and will be fulfilled shortly.`,
   }),
   ORDER_REJECTED: (p) => ({
-    subject: `Order #${p.orderNumber ?? p.orderId} Rejected`,
-    body: `Your order #${p.orderNumber ?? p.orderId} has been rejected.${
+    subject: `Order #${p.orderNumber ?? p.orderId ?? "N/A"} Rejected`,
+    body: `Your order #${p.orderNumber ?? p.orderId ?? "N/A"} has been rejected.${
       p.rejectionReason ? ` Reason: ${p.rejectionReason}` : ""
     }`,
   }),
@@ -60,114 +54,79 @@ const NOTIFICATION_TEMPLATES: Record<
     } units remaining). Please reorder soon.`,
   }),
   APPROVAL_NEEDED: (p) => ({
-    subject: `Approval Required: Order #${p.orderNumber ?? p.orderId}`,
-    body: `Order #${p.orderNumber ?? p.orderId} requires your approval. Please review it in the admin dashboard.`,
+    subject: `Approval Required: Order #${p.orderNumber ?? p.orderId ?? "N/A"}`,
+    body: `Order #${p.orderNumber ?? p.orderId ?? "N/A"} requires your approval. Please review it in the admin dashboard.`,
   }),
 };
 
-// ── POST Handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const clientIp = extractTrustedClientIp(req);
+
   try {
-    // 1. Read raw body for signature verification
     const rawBody = await req.text();
 
-    // 2. Verify QStash signature if signing key is configured
-    if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
-      const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
-      if (!isValid) {
-        console.error("[notifications] QStash signature verification failed:", error);
-        return NextResponse.json(
-          { error: "InvalidSignature", message: error ?? "Signature verification failed" },
-          { status: 401 }
-        );
-      }
+    // Unconditional QStash signature verification (fail-closed)
+    const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
+    if (!isValid) {
+      logSecurityEvent({
+        event: "AUTH_SESSION_INVALID",
+        severity: "HIGH",
+        ip: clientIp,
+        path: "/api/workers/notifications",
+        method: "POST",
+        reason: error ?? "QStash signature verification failed",
+      });
+      return NextResponse.json(
+        { error: "InvalidSignature", message: "Signature verification failed" },
+        { status: 401 }
+      );
     }
 
-    // 3. Parse payload
-    const payload: NotificationPayload = JSON.parse(rawBody);
-
-    if (!payload.type) {
+    let rawJson: unknown;
+    try {
+      rawJson = JSON.parse(rawBody);
+    } catch {
       return NextResponse.json(
-        { error: "BadRequest", message: "Missing notification type" },
+        { error: "BadRequest", message: "Invalid JSON payload" },
         { status: 400 }
       );
     }
 
-    // 4. Resolve notification template
-    const templateFn = NOTIFICATION_TEMPLATES[payload.type];
-    if (!templateFn) {
+    const parsed = notificationPayloadSchema.safeParse(rawJson);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "BadRequest", message: `Unsupported notification type: ${payload.type}` },
+        {
+          error: "InvalidNotification",
+          message: parsed.error.issues[0]?.message || "Invalid notification payload",
+        },
         { status: 400 }
       );
     }
 
-    const { subject, body } = templateFn(payload);
+    const template = NOTIFICATION_TEMPLATES[parsed.data.type](parsed.data);
 
-    // 5. Dispatch notification via available channels
-    //    Currently in log mode. Enable Resend/Slack below when env vars are set.
-
-    // TODO: Resend email integration
-    // Uncomment when RESEND_API_KEY is configured:
-    //
-    // import { Resend } from "resend";
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    //
-    // if (process.env.RESEND_API_KEY && payload.userId) {
-    //   try {
-    //     const userEmail = await resolveUserEmail(payload.userId);
-    //     await resend.emails.send({
-    //       from: `${process.env.COMPANY_NAME ?? "Office Store"} <notifications@${process.env.RESEND_DOMAIN ?? "example.com"}>`,
-    //       to: userEmail,
-    //       subject,
-    //       text: body,
-    //     });
-    //     console.log(`[notifications] Email sent to ${userEmail}`);
-    //   } catch (emailErr: any) {
-    //     console.error("[notifications] Email send failed:", emailErr.message);
-    //   }
-    // }
-
-    // TODO: Slack webhook integration
-    // Uncomment when SLACK_WEBHOOK_URL is configured:
-    //
-    // if (process.env.SLACK_WEBHOOK_URL) {
-    //   try {
-    //     await fetch(process.env.SLACK_WEBHOOK_URL, {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({
-    //         text: `*${subject}*\n${body}`,
-    //         blocks: [
-    //           {
-    //             type: "section",
-    //             text: {
-    //               type: "mrkdwn",
-    //               text: `*${subject}*\n${body}`,
-    //             },
-    //           },
-    //         ],
-    //       }),
-    //     });
-    //     console.log("[notifications] Slack message sent");
-    //   } catch (slackErr: any) {
-    //     console.error("[notifications] Slack webhook failed:", slackErr.message);
-    //   }
-    // }
-
-    const result: NotificationResult = {
-      sent: true,
-      channel: "log",
-      type: payload.type,
-    };
-
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(
+      {
+        sent: true,
+        channel: "log",
+        type: parsed.data.type,
+        subject: template.subject,
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
-    console.error("[notifications] Worker error:", error);
+    logSecurityEvent({
+      event: "UNHANDLED_SERVER_ERROR",
+      severity: "HIGH",
+      ip: clientIp,
+      path: "/api/workers/notifications",
+      method: "POST",
+      reason: error?.message ?? "Notification worker failure",
+    });
     return NextResponse.json(
       {
         error: "InternalServerError",
-        message: error.message ?? "An unexpected error occurred during notification dispatch",
+        message: "An unexpected error occurred during notification dispatch",
         sent: false,
       },
       { status: 500 }

@@ -33,9 +33,17 @@ export class AuditRepository implements IAuditRepository {
     }
 
     const client = tx || db;
+    let safeAdminUserId: string | null = null;
+    if (entry.adminUserId && entry.adminUserId !== "system") {
+      try {
+        safeAdminUserId = normalizeUserUuid(entry.adminUserId);
+      } catch {
+        safeAdminUserId = null;
+      }
+    }
     const normalizedEntry = {
       ...entry,
-      adminUserId: entry.adminUserId ? normalizeUserUuid(entry.adminUserId) : null,
+      adminUserId: safeAdminUserId,
     };
     const [created] = await client.insert(schema.auditLogs).values(normalizedEntry).returning();
     return created;
@@ -67,12 +75,17 @@ export class AuditRepository implements IAuditRepository {
       conditions.push(eq(schema.auditLogs.adminUserId, normalizeUserUuid(filter.adminUserId)));
     }
     if (filter?.from) {
-      conditions.push(gte(schema.auditLogs.createdAt, new Date(filter.from)));
+      const fromDate = new Date(filter.from);
+      if (!Number.isNaN(fromDate.getTime())) {
+        conditions.push(gte(schema.auditLogs.createdAt, fromDate));
+      }
     }
     if (filter?.to) {
       const toDate = new Date(filter.to);
-      toDate.setHours(23, 59, 59, 999);
-      conditions.push(lte(schema.auditLogs.createdAt, toDate));
+      if (!Number.isNaN(toDate.getTime())) {
+        toDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(schema.auditLogs.createdAt, toDate));
+      }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

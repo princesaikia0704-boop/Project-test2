@@ -93,6 +93,10 @@ export const users = pgTable(
     clerkId: varchar("clerk_id", { length: 255 }).notNull(),
     email: varchar("email", { length: 255 }).notNull(),
     name: varchar("name", { length: 255 }).notNull(),
+    passwordHash: text("password_hash"),
+    sessionVersion: integer("session_version").default(1).notNull(),
+    failedLoginAttempts: integer("failed_login_attempts").default(0).notNull(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
     role: userRoleEnum("role").default("EMPLOYEE").notNull(),
     departmentId: uuid("department_id").references(() => departments.id, {
       onDelete: "set null",
@@ -109,6 +113,30 @@ export const users = pgTable(
     uniqueIndex("users_email_idx").on(table.email),
     index("users_department_id_idx").on(table.departmentId),
     index("users_role_idx").on(table.role),
+  ]
+);
+
+// =============================================================================
+// 2B. PASSWORD RESET TOKENS TABLE (Single-Use, Hashed, Expiring)
+// =============================================================================
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("password_reset_tokens_hash_idx").on(table.tokenHash),
+    index("password_reset_tokens_user_idx").on(table.userId),
+    index("password_reset_tokens_expires_idx").on(table.expiresAt),
   ]
 );
 
@@ -380,6 +408,14 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   orders: many(orders, { relationName: "orderAuthor" }),
   approvedOrders: many(orders, { relationName: "orderApprover" }),
   auditLogs: many(auditLogs),
+  passwordResetTokens: many(passwordResetTokens),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const departmentBudgetsRelations = relations(
@@ -476,3 +512,6 @@ export type NewStoreSettings = typeof storeSettings.$inferInsert;
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type NewPasswordResetToken = typeof passwordResetTokens.$inferInsert;

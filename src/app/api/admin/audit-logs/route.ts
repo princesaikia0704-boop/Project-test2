@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
 import { auditRepo } from "@/repositories/audit.repo";
+import { auditLogQuerySchema } from "@/lib/validators/store-config.schema";
 
 const USERS_MAP: Record<string, string> = {
   "30000000-0000-0000-0000-000000000001": "Alex Chen (Employee)",
@@ -16,17 +17,29 @@ const USERS_MAP: Record<string, string> = {
 export const GET = withApiReliability(
   async (req: NextRequest) => {
     const { searchParams } = new URL(req.url);
-    const entityType = searchParams.get("entityType") || undefined;
-    const action = searchParams.get("action") || undefined;
-    const from = searchParams.get("from") || undefined;
-    const to = searchParams.get("to") || undefined;
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, parseInt(searchParams.get("limit") || "20", 10));
+    const parsed = auditLogQuerySchema.safeParse({
+      entityType: searchParams.get("entityType") || undefined,
+      action: searchParams.get("action") || undefined,
+      from: searchParams.get("from") || undefined,
+      to: searchParams.get("to") || undefined,
+      page: searchParams.get("page") || undefined,
+      limit: searchParams.get("limit") || undefined,
+    });
+
+    if (!parsed.success) {
+      return createErrorResponse(
+        "ValidationError",
+        parsed.error.issues[0]?.message || "Invalid audit log query parameters",
+        400
+      );
+    }
+
+    const { entityType, action, from, to, page, limit } = parsed.data;
     const offset = (page - 1) * limit;
 
     const { logs, total } = await auditRepo.listLogsWithCount({
-      entityType: entityType !== "ALL" ? entityType : undefined,
-      action: action !== "ALL" ? action : undefined,
+      entityType: entityType && entityType !== "ALL" ? entityType : undefined,
+      action: action && action !== "ALL" ? action : undefined,
       from,
       to,
       limit,
@@ -70,7 +83,7 @@ export const GET = withApiReliability(
       { status: 200 }
     );
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );
 
 function methodNotAllowedResponse(): NextResponse {

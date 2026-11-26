@@ -1,7 +1,8 @@
 /**
- * Corporate Office Store - Global API Reliability & Idempotency Wrapper
+ * Corporate Office Store - Global API Reliability, Zero-Trust Auth & Error Wrapper
  * Provides 8000ms SLA timeout, Redis idempotency locks, replay caching,
- * RBAC authorization, and structured sanitized error envelopes.
+ * verified session RBAC authorization, CSRF Origin verification,
+ * structured security telemetry, and production-safe error envelopes.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,6 +14,11 @@ import {
   getIdempotencyKey,
   IdempotencyEntry,
 } from "@/lib/cache/redis";
+import { resolveServerSession, AuthenticatedUser } from "@/lib/auth/server-auth";
+import { verifyCsrfOrigin } from "@/lib/security/csrf";
+import { applySecurityHeaders } from "@/lib/security/headers";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
 export type UserRole = "EMPLOYEE" | "MANAGER" | "ADMIN";
 
@@ -20,6 +26,7 @@ export interface ApiHandlerOptions {
   timeoutMs?: number; // default: 8000
   requireIdempotency?: boolean; // default: false
   allowedRoles?: UserRole[];
+  skipCsrfCheck?: boolean; // only for QStash webhook endpoints verified by HMAC
 }
 
 export interface ApiErrorEnvelope {
@@ -33,14 +40,37 @@ export type ApiRouteHandler = (
   context?: any
 ) => Promise<NextResponse> | NextResponse;
 
+const verifiedAuthMap = new WeakMap<NextRequest, AuthenticatedUser>();
+
+/**
+ * Retrieves the cryptographically verified user attached by withApiReliability,
+ * or resolves directly from the request cookies/Clerk session. Never reads raw headers.
+ */
+export async function getRequestAuth(req: NextRequest): Promise<AuthenticatedUser | null> {
+  const cached = verifiedAuthMap.get(req);
+  if (cached) return cached;
+  const resolved = await resolveServerSession(req);
+  if (resolved) {
+    verifiedAuthMap.set(req, resolved);
+  }
+  return resolved;
+}
+
 // Redacts database credentials, passwords, and API secrets from output envelopes (T2-F07-03)
 export function sanitizeErrorMessage(msg: string): string {
   if (typeof msg !== "string") return String(msg);
   return msg
     .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, "[REDACTED_DB_URL]")
     .replace(/CLERK_SECRET_KEY=[^\s"']+/gi, "CLERK_SECRET_KEY=[REDACTED]")
-    .replace(/sk_test_[a-zA-Z0-9_]+/gi, "[REDACTED_SECRET]")
-    .replace(/sigkey_[a-zA-Z0-9_]+/gi, "[REDACTED_SIGKEY]");
+    .replace(/SESSION_SECRET=[^\s"']+/gi, "SESSION_SECRET=[REDACTED]")
+    .replace(/UPSTASH_REDIS_REST_TOKEN=[^\s"']+/gi, "UPSTASH_REDIS_REST_TOKEN=[REDACTED]")
+    .replace(/QSTASH_TOKEN=[^\s"']+/gi, "QSTASH_TOKEN=[REDACTED]")
+    .replace(/R2_SECRET_ACCESS_KEY=[^\s"']+/gi, "R2_SECRET_ACCESS_KEY=[REDACTED]")
+    .replace(/RESEND_API_KEY=[^\s"']+/gi, "RESEND_API_KEY=[REDACTED]")
+    .replace(/sk_(?:test|live)_[a-zA-Z0-9_-]+/gi, "[REDACTED_SECRET]")
+    .replace(/sig(?:key)?_[a-zA-Z0-9_-]+/gi, "[REDACTED_SIGKEY]")
+    .replace(/re_[a-zA-Z0-9_-]{12,}/gi, "[REDACTED_RESEND_KEY]")
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [REDACTED]");
 }
 
 export function createErrorResponse(
@@ -49,82 +79,92 @@ export function createErrorResponse(
   statusCode: number
 ): NextResponse<ApiErrorEnvelope> {
   const sanitizedMessage = sanitizeErrorMessage(message);
-  return NextResponse.json(
+  const res = NextResponse.json(
     { error, message: sanitizedMessage, statusCode },
     {
       status: statusCode,
       headers: { "content-type": "application/json" },
     }
   );
+  applySecurityHeaders(res.headers);
+  return res;
 }
 
 export function withApiReliability(
   handler: ApiRouteHandler,
   options: ApiHandlerOptions = {}
 ): (req: NextRequest, context?: any) => Promise<NextResponse> {
-  const { timeoutMs = 8000, requireIdempotency = false, allowedRoles } = options;
+  const {
+    timeoutMs = 8000,
+    requireIdempotency = false,
+    allowedRoles,
+    skipCsrfCheck = false,
+  } = options;
 
   return async (req: NextRequest, context?: any): Promise<NextResponse> => {
-    // 1. RBAC Authentication & Role Verification (T1-F07-02)
-    let userRole = req.headers.get("x-user-role") as UserRole | null;
-    let userId = req.headers.get("x-user-id");
+    const clientIp = extractTrustedClientIp(req);
+    const pathname = req.nextUrl?.pathname || new URL(req.url).pathname;
 
-    // Extract from mock Bearer token if not in direct headers
-    if (!userRole) {
-      const authHeader = req.headers.get("authorization");
-      if (authHeader && authHeader.startsWith("Bearer mock_jwt_")) {
-        const parts = authHeader.replace("Bearer mock_jwt_", "").split("_");
-        if (parts.length >= 2) {
-          userRole = parts[0].toUpperCase() as UserRole;
-          userId = parts.slice(1).join("_");
-        }
+    // 1. CSRF Origin Verification on state-changing requests (Defense-in-Depth)
+    if (!skipCsrfCheck) {
+      const csrf = verifyCsrfOrigin(req);
+      if (!csrf.ok) {
+        logSecurityEvent({
+          event: "CSRF_ORIGIN_BLOCKED",
+          severity: "HIGH",
+          ip: clientIp,
+          path: pathname,
+          method: req.method,
+          reason: csrf.reason,
+        });
+        return createErrorResponse("Forbidden", "Origin verification failed", 403);
       }
     }
 
-    // Extract from mock cookies if not in headers or auth bearer
-    if (!userRole) {
-      const cookieRole = req.cookies.get("mock_user_role")?.value?.toUpperCase() as UserRole | undefined;
-      const cookiePersona = req.cookies.get("mock_persona")?.value;
-      const cookieToken = req.cookies.get("mock_token")?.value;
-
-      if (cookieRole) {
-        userRole = cookieRole;
-        userId = cookiePersona || userId || "user-admin";
-      } else if (cookieToken && cookieToken.startsWith("mock_jwt_")) {
-        const parts = cookieToken.replace("mock_jwt_", "").split("_");
-        if (parts.length >= 2) {
-          userRole = parts[0].toUpperCase() as UserRole;
-          userId = parts.slice(1).join("_");
-        }
-      } else if (cookiePersona) {
-        if (cookiePersona.includes("adm")) userRole = "ADMIN";
-        else if (cookiePersona.includes("mgr")) userRole = "MANAGER";
-        else if (cookiePersona.includes("emp")) userRole = "EMPLOYEE";
-        userId = cookiePersona;
-      }
-    }
+    // 2. Cryptographic Authentication & Role Verification (Zero-Trust)
+    const authUser = await getRequestAuth(req);
 
     if (allowedRoles && allowedRoles.length > 0) {
-      if (!userRole || !userId) {
+      if (!authUser) {
+        logSecurityEvent({
+          event: "RBAC_ACCESS_DENIED",
+          severity: "WARN",
+          ip: clientIp,
+          path: pathname,
+          method: req.method,
+          reason: "Unauthenticated request to protected endpoint",
+        });
         return createErrorResponse(
           "Unauthorized",
-          "Missing or invalid authentication token",
+          "Missing or invalid authentication session",
           401
         );
       }
-      if (!allowedRoles.includes(userRole)) {
+
+      if (!allowedRoles.includes(authUser.role)) {
+        logSecurityEvent({
+          event: "RBAC_ACCESS_DENIED",
+          severity: "HIGH",
+          userId: authUser.id,
+          role: authUser.role,
+          ip: clientIp,
+          path: pathname,
+          method: req.method,
+          reason: `Role ${authUser.role} attempted access requiring [${allowedRoles.join(", ")}]`,
+        });
         return createErrorResponse(
           "Forbidden",
-          "Insufficient role permissions for administrative resource",
+          "Insufficient role permissions for this resource",
           403
         );
       }
     }
 
-    // 2. Idempotency Key Handling (F05)
-    const idempotencyKey =
+    // 3. Idempotency Key Handling (F05)
+    const rawIdempKey =
       req.headers.get("idempotency-key") ||
       req.headers.get("Idempotency-Key");
+    const idempotencyKey = rawIdempKey ? rawIdempKey.trim().slice(0, 256) : null;
 
     if (requireIdempotency && !idempotencyKey) {
       return createErrorResponse(
@@ -134,7 +174,7 @@ export function withApiReliability(
       );
     }
 
-    const effectiveUserId = userId || "anonymous";
+    const effectiveUserId = authUser?.id || "anonymous";
     let lockAcquired = false;
 
     if (idempotencyKey) {
@@ -150,27 +190,33 @@ export function withApiReliability(
             409
           );
         }
-        return NextResponse.json(existing.data, {
+        const replayRes = NextResponse.json(existing.data, {
           status: existing.status,
           headers: {
             "content-type": "application/json",
             "x-cache": "IDEMPOTENT_HIT",
           },
         });
+        applySecurityHeaders(replayRes.headers);
+        return replayRes;
       }
 
       lockAcquired = lock.acquired;
     }
 
-    // 3. Timeout Controller (8000ms SLA - T1-F07-03, T2-F07-01)
+    // 4. Timeout Controller (8000ms SLA - T1-F07-03, T2-F07-01)
     const controller = new AbortController();
     let hasTimedOut = false;
 
-    // Check client override timeout header or option
+    // Prevent clients in production from triggering artificial 504 DoS via x-timeout-ms
     const clientTimeoutHeader = req.headers.get("x-timeout-ms");
-    const effectiveTimeoutMs = clientTimeoutHeader
-      ? Math.min(Number(clientTimeoutHeader), timeoutMs)
-      : timeoutMs;
+    const parsedClientTimeout = clientTimeoutHeader ? Number(clientTimeoutHeader) : NaN;
+    const effectiveTimeoutMs =
+      process.env.NODE_ENV !== "production" &&
+      Number.isFinite(parsedClientTimeout) &&
+      parsedClientTimeout >= 100
+        ? Math.min(parsedClientTimeout, timeoutMs)
+        : timeoutMs;
 
     let timeoutTimer: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<NextResponse>((_, reject) => {
@@ -182,7 +228,6 @@ export function withApiReliability(
     });
 
     try {
-      // Race execution against SLA limit
       const executionPromise = (async () => {
         return await handler(req, context);
       })();
@@ -190,7 +235,6 @@ export function withApiReliability(
       const response = await Promise.race([executionPromise, timeoutPromise]);
       if (timeoutTimer) clearTimeout(timeoutTimer);
 
-      // 4. Successful Execution - Cache Payload or Purge on Validation Failure
       if (idempotencyKey && lockAcquired) {
         if (response.status >= 200 && response.status < 300) {
           try {
@@ -203,25 +247,22 @@ export function withApiReliability(
               responseData
             );
           } catch {
-            // Non-JSON response, release mutex
             await releaseIdempotencyLock(effectiveUserId, idempotencyKey);
           }
         } else {
-          // If response is 4xx or 5xx, purge the lock to allow retry (T2-F05-04)
           await releaseIdempotencyLock(effectiveUserId, idempotencyKey);
         }
       }
 
+      applySecurityHeaders(response.headers);
       return response;
     } catch (thrown: any) {
       if (timeoutTimer) clearTimeout(timeoutTimer);
 
-      // Always purge idempotency lock on thrown exceptions so client can retry
       if (idempotencyKey && lockAcquired) {
         await releaseIdempotencyLock(effectiveUserId, idempotencyKey);
       }
 
-      // Handle SLA Timeout (T2-F07-01: 'Request execution exceeded 8000ms SLA limit')
       if (hasTimedOut || thrown?.message === "REQUEST_TIMEOUT" || thrown?.name === "TimeoutError") {
         return createErrorResponse(
           "TimeoutError",
@@ -230,8 +271,7 @@ export function withApiReliability(
         );
       }
 
-      // Handle String Primitives & Custom Errors (T2-F07-04)
-      const errorMsg =
+      const rawErrorMsg =
         typeof thrown === "string"
           ? thrown
           : thrown?.message || "Internal server error occurred";
@@ -248,7 +288,26 @@ export function withApiReliability(
           ? thrown.name
           : "InternalServerError";
 
-      return createErrorResponse(errorType, errorMsg, statusCode);
+      if (statusCode >= 500) {
+        logSecurityEvent({
+          event: "UNHANDLED_SERVER_ERROR",
+          severity: "HIGH",
+          userId: authUser?.id ?? null,
+          role: authUser?.role ?? null,
+          ip: clientIp,
+          path: pathname,
+          method: req.method,
+          reason: rawErrorMsg,
+        });
+      }
+
+      // Never expose raw DB/internal error strings to clients in production on 500s
+      const clientErrorMsg =
+        statusCode >= 500 && process.env.NODE_ENV === "production"
+          ? "An unexpected internal server error occurred"
+          : rawErrorMsg;
+
+      return createErrorResponse(errorType, clientErrorMsg, statusCode);
     }
   };
 }

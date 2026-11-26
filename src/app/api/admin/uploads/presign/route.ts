@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { generatePresignedUploadUrl } from "@/services/storage.service";
 import { DomainError } from "@/services/order.service";
+import { presignUploadSchema } from "@/lib/validators/store-config.schema";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
 export const POST = withApiReliability(
   async (req: NextRequest) => {
-    let body: any;
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "ValidationError",
@@ -16,47 +24,23 @@ export const POST = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
-      return createErrorResponse(
-        "MissingFilename",
-        "Filename is required",
-        400
-      );
+    const parsed = presignUploadSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || "Invalid presign upload request";
+      const code = msg.toLowerCase().includes("10mb")
+        ? "PayloadTooLarge"
+        : msg.toLowerCase().includes("filename")
+        ? "MissingFilename"
+        : "ValidationError";
+      return createErrorResponse(code, msg, 400);
     }
-
-    if (!body.filename || typeof body.filename !== "string" || !body.filename.trim()) {
-      return createErrorResponse(
-        "MissingFilename",
-        "Filename is required",
-        400
-      );
-    }
-
-    if (body.fileSizeBytes !== undefined && (typeof body.fileSizeBytes !== "number" || body.fileSizeBytes > 10 * 1024 * 1024)) {
-      return createErrorResponse(
-        "PayloadTooLarge",
-        "File size exceeds 10MB limit",
-        400
-      );
-    }
-
-    const disallowedExts = [".sh", ".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"];
-    if (disallowedExts.some((ext) => body.filename.toLowerCase().endsWith(ext))) {
-      return createErrorResponse(
-        "DisallowedFileType",
-        "Executable files are prohibited",
-        400
-      );
-    }
-
-    const adminUserId = req.headers.get("x-user-id") || "admin";
 
     try {
       const result = await generatePresignedUploadUrl({
-        filename: body.filename.trim(),
-        fileSizeBytes: body.fileSizeBytes,
-        contentType: body.contentType,
-        adminUserId,
+        filename: parsed.data.filename,
+        fileSizeBytes: parsed.data.fileSizeBytes,
+        contentType: parsed.data.contentType,
+        adminUserId: authUser.id,
       });
 
       return NextResponse.json(
@@ -70,10 +54,20 @@ export const POST = withApiReliability(
       );
     } catch (err: any) {
       if (err instanceof DomainError) {
+        logSecurityEvent({
+          event: "UPLOAD_REJECTED",
+          severity: "WARN",
+          userId: authUser.id,
+          role: authUser.role,
+          ip: extractTrustedClientIp(req),
+          path: "/api/admin/uploads/presign",
+          method: "POST",
+          reason: err.message,
+        });
         return createErrorResponse(err.name, err.message, err.statusCode);
       }
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );

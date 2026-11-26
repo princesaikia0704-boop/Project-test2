@@ -1,76 +1,66 @@
 /**
  * Corporate Office Store - Async Audit Trail Writer Worker
- * Receives audit log entries from Upstash QStash and persists them to the
- * audit_logs table. Designed to never throw — audit logging failures are
- * logged but do not crash the worker.
+ * Always verifies Upstash QStash HMAC signature (fail-closed) and validates via Zod.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { verifySignatureAppRouter } from "@/lib/queue/qstash";
 import { auditRepo } from "@/repositories/audit.repo";
 import type { AuditAction, EntityType } from "@/lib/db/schema";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-interface AuditLogPayload {
-  adminUserId: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  oldValue?: object | null;
-  newValue?: object | null;
-  ipAddress?: string;
-  userAgent?: string;
-}
+const auditWorkerPayloadSchema = z.object({
+  adminUserId: z.string().trim().min(1).max(100),
+  action: z.enum(["CREATE", "UPDATE", "DELETE", "APPROVE", "REJECT", "STOCK_ADJUST", "CONFIG_UPDATE"]),
+  entityType: z.enum(["PRODUCT", "CATEGORY", "ORDER", "STORE_SETTINGS", "DEPARTMENT_BUDGET", "USER", "DEPARTMENT"]),
+  entityId: z.string().trim().min(1).max(100),
+  oldValue: z.record(z.unknown()).nullable().optional(),
+  newValue: z.record(z.unknown()).nullable().optional(),
+  ipAddress: z.string().trim().max(45).optional(),
+  userAgent: z.string().trim().max(500).optional(),
+});
 
-interface AuditLogResult {
-  logged: boolean;
-  auditLogId: string;
-}
-
-// ── POST Handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  const clientIp = extractTrustedClientIp(req);
+
   try {
-    // 1. Read raw body for signature verification
     const rawBody = await req.text();
 
-    // 2. Verify QStash signature if signing key is configured
-    if (process.env.QSTASH_CURRENT_SIGNING_KEY) {
-      const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
-      if (!isValid) {
-        console.error("[audit-log] QStash signature verification failed:", error);
-        return NextResponse.json(
-          { error: "InvalidSignature", message: error ?? "Signature verification failed" },
-          { status: 401 }
-        );
-      }
+    // Unconditional QStash signature verification (fail-closed)
+    const { isValid, error } = await verifySignatureAppRouter(req, rawBody);
+    if (!isValid) {
+      logSecurityEvent({
+        event: "AUTH_SESSION_INVALID",
+        severity: "HIGH",
+        ip: clientIp,
+        path: "/api/workers/audit-log",
+        method: "POST",
+        reason: error ?? "QStash signature verification failed",
+      });
+      return NextResponse.json(
+        { error: "InvalidSignature", message: "Signature verification failed" },
+        { status: 401 }
+      );
     }
 
-    // 3. Parse payload
-    let payload: AuditLogPayload;
+    let rawJson: unknown;
     try {
-      payload = JSON.parse(rawBody);
+      rawJson = JSON.parse(rawBody);
     } catch {
-      console.error("[audit-log] Invalid JSON payload");
       return NextResponse.json(
         { error: "BadRequest", message: "Invalid JSON payload", logged: false, auditLogId: "" },
         { status: 400 }
       );
     }
 
-    // 4. Validate required fields
-    if (!payload.adminUserId || !payload.action || !payload.entityType || !payload.entityId) {
-      const missing = [
-        !payload.adminUserId && "adminUserId",
-        !payload.action && "action",
-        !payload.entityType && "entityType",
-        !payload.entityId && "entityId",
-      ].filter(Boolean);
-
-      console.warn("[audit-log] Missing required fields:", missing.join(", "));
+    const parsed = auditWorkerPayloadSchema.safeParse(rawJson);
+    if (!parsed.success) {
       return NextResponse.json(
         {
-          error: "BadRequest",
-          message: `Missing required fields: ${missing.join(", ")}`,
+          error: "InvalidAuditPayload",
+          message: parsed.error.issues[0]?.message || "Invalid audit log payload",
           logged: false,
           auditLogId: "",
         },
@@ -78,15 +68,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Serialize old/new values to JSON strings for storage
-    const oldValueStr = payload.oldValue
-      ? JSON.stringify(payload.oldValue)
-      : null;
-    const newValueStr = payload.newValue
-      ? JSON.stringify(payload.newValue)
-      : null;
+    const payload = parsed.data;
+    const oldValueStr = payload.oldValue ? JSON.stringify(payload.oldValue) : null;
+    const newValueStr = payload.newValue ? JSON.stringify(payload.newValue) : null;
 
-    // 6. Write audit log entry via repository
     const auditLog = await auditRepo.record({
       adminUserId: payload.adminUserId,
       action: payload.action as AuditAction,
@@ -94,27 +79,34 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       entityId: payload.entityId,
       oldValue: oldValueStr,
       newValue: newValueStr,
-      ipAddress: payload.ipAddress ?? req.headers.get("x-forwarded-for") ?? null,
+      ipAddress: payload.ipAddress ?? clientIp ?? null,
       userAgent: payload.userAgent ?? req.headers.get("user-agent") ?? null,
     });
 
-    const result: AuditLogResult = {
-      logged: true,
-      auditLogId: auditLog.id,
-    };
-
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(
+      {
+        logged: true,
+        auditLogId: auditLog.id,
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
-    // Audit logging should NEVER crash — absorb the error and return gracefully
-    console.error("[audit-log] Worker error (non-fatal):", error?.message ?? error);
+    logSecurityEvent({
+      event: "UNHANDLED_SERVER_ERROR",
+      severity: "WARN",
+      ip: clientIp,
+      path: "/api/workers/audit-log",
+      method: "POST",
+      reason: error?.message ?? "Failed to write audit log entry",
+    });
     return NextResponse.json(
       {
         logged: false,
         auditLogId: "",
         error: "AuditWriteFailed",
-        message: error?.message ?? "Failed to write audit log entry",
+        message: "Failed to write audit log entry",
       },
-      { status: 200 } // Intentionally 200 — audit failures should not trigger QStash retries
+      { status: 200 }
     );
   }
 }

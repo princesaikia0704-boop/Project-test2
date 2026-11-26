@@ -15,6 +15,10 @@ export interface UserSeed {
   clerkId: string;
   email: string;
   name: string;
+  passwordHash?: string | null;
+  sessionVersion?: number;
+  failedLoginAttempts?: number;
+  lockedUntil?: Date | null;
   role: "EMPLOYEE" | "MANAGER" | "ADMIN";
   departmentId: string | null;
   createdAt: Date;

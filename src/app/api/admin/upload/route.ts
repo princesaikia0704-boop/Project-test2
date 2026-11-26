@@ -1,69 +1,84 @@
 /**
  * POST /api/admin/upload
- *
- * Phase 1 (Mock): Saves uploaded image to /public/uploads/ and returns a local URL.
- * Phase 2 (Production): Swap the storage block below for Cloudflare R2 SDK upload.
- *
- * Accepts: multipart/form-data with field "file"
- * Returns: { url: string }
+ * Hardened image upload endpoint:
+ * - Strict ADMIN RBAC via withApiReliability
+ * - Rejects SVG / HTML / JS / executables (prevents same-origin Stored XSS)
+ * - Enforces extension allowlist, MIME allowlist, AND magic-byte signature verification
+ * - Caps file size (5MB) and checks Content-Length prior to parsing
+ * - Generates collision-free UUID filenames with path containment validation
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
+import { validateImageUpload, resolveContainedPath } from "@/lib/security/upload";
+import { logSecurityEvent } from "@/lib/security/logger";
+import { extractTrustedClientIp } from "@/lib/security/rate-limit";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_MULTIPART_CONTENT_LENGTH = 6 * 1024 * 1024; // 6 MB overhead allowance
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  try {
+export const POST = withApiReliability(
+  async (req: NextRequest): Promise<NextResponse> => {
+    const authUser = await getRequestAuth(req);
+    const clientIp = extractTrustedClientIp(req);
+
+    const contentLengthHeader = req.headers.get("content-length");
+    if (contentLengthHeader) {
+      const contentLength = Number(contentLengthHeader);
+      if (Number.isFinite(contentLength) && contentLength > MAX_MULTIPART_CONTENT_LENGTH) {
+        return createErrorResponse("PayloadTooLarge", "Upload exceeds maximum allowed size (5 MB)", 413);
+      }
+    }
+
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const fileEntry = formData.get("file");
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!fileEntry || !(fileEntry instanceof File)) {
+      return createErrorResponse("ValidationError", "No valid file provided", 400);
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: `Unsupported file type: ${file.type}. Allowed: JPEG, PNG, WebP, GIF, SVG` },
-        { status: 400 }
+    if (fileEntry.size <= 0) {
+      return createErrorResponse("ValidationError", "Uploaded file cannot be empty", 400);
+    }
+
+    if (fileEntry.size > MAX_SIZE_BYTES) {
+      return createErrorResponse(
+        "PayloadTooLarge",
+        `File too large (${(fileEntry.size / 1024 / 1024).toFixed(1)} MB). Max: 5 MB`,
+        400
       );
     }
 
-    if (file.size > MAX_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max: 5 MB` },
-        { status: 400 }
-      );
+    const buffer = Buffer.from(await fileEntry.arrayBuffer());
+    if (buffer.length > MAX_SIZE_BYTES) {
+      return createErrorResponse("PayloadTooLarge", "File exceeds maximum 5 MB limit", 400);
     }
 
-    // ── Phase 1: Save to /public/uploads/ ────────────────────────────────────
-    // Phase 2: Replace this block with:
-    //   const r2 = new S3Client({ ... cloudflare R2 config });
-    //   await r2.send(new PutObjectCommand({ Bucket, Key: filename, Body: buffer, ContentType: file.type }));
-    //   return NextResponse.json({ url: `${process.env.R2_PUBLIC_URL}/${filename}` });
-    // ─────────────────────────────────────────────────────────────────────────
+    const validated = validateImageUpload(fileEntry.name, fileEntry.type, buffer);
+    if (!validated.ok) {
+      logSecurityEvent({
+        event: "UPLOAD_REJECTED",
+        severity: "WARN",
+        userId: authUser?.id ?? null,
+        role: authUser?.role ?? null,
+        ip: clientIp,
+        path: "/api/admin/upload",
+        method: "POST",
+        reason: validated.reason,
+        metadata: { declaredMime: fileEntry.type, size: fileEntry.size },
+      });
+      return createErrorResponse("DisallowedFileType", validated.reason, 400);
+    }
 
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const safeName = file.name
-      .replace(/\.[^.]+$/, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .slice(0, 40);
-    const filename = `${safeName}-${Date.now()}.${ext}`;
-
-    const buffer = Buffer.from(await file.arrayBuffer());
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
+    const targetPath = resolveContainedPath(uploadDir, validated.data.canonicalFilename);
+    await writeFile(targetPath, buffer);
 
-    const url = `/uploads/${filename}`;
+    const url = `/uploads/${validated.data.canonicalFilename}`;
     return NextResponse.json({ url }, { status: 200 });
-
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Upload failed";
-    console.error("[upload] error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
+  },
+  { allowedRoles: ["ADMIN"] }
+);

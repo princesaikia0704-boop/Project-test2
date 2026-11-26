@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PersonaSwitcher } from "@/components/shared/PersonaSwitcher";
 import { useBranding } from "@/hooks/useBranding";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 
 interface NavItem {
   href: string;
@@ -28,14 +29,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const { companyName, logoUrl } = useBranding();
+  const safeLogoUrl = sanitizeSafeUrl(logoUrl);
   const [logoError, setLogoError] = useState(false);
+  const [authState, setAuthState] = useState<"checking" | "authorized" | "unauthorized">("checking");
 
   useEffect(() => {
     setLogoError(false);
-  }, [logoUrl]);
+  }, [safeLogoUrl]);
+
+  // Verify admin/manager authorization before mounting privileged controls
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active) return;
+        const role = data?.user?.role;
+        if (data?.authenticated && (role === "ADMIN" || role === "MANAGER")) {
+          setAuthState("authorized");
+        } else {
+          setAuthState("unauthorized");
+          window.location.assign(`/login?redirect=${encodeURIComponent(pathname || "/admin")}`);
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setAuthState("unauthorized");
+        window.location.assign("/login");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   // Fetch pending approvals count for badge
   useEffect(() => {
+    if (authState !== "authorized") return;
+
     const fetchApprovals = async () => {
       try {
         const apprRes = await fetch("/api/admin/approvals");
@@ -51,7 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetchApprovals();
     const interval = setInterval(fetchApprovals, 30_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authState]);
 
   const navItems: NavItem[] = [
     {
@@ -87,6 +118,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return pathname.startsWith(href);
   };
 
+  if (authState !== "authorized") {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-300 flex items-center justify-center text-sm font-medium">
+        {authState === "checking" ? "Verifying administrator session..." : "Redirecting to sign in..."}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex font-sans transition-colors duration-200">
       {/* Sidebar */}
@@ -99,10 +138,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Sidebar Header */}
         <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-700 shrink-0">
           <div className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
-            {logoUrl && !logoError ? (
+            {safeLogoUrl && !logoError ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={logoUrl}
+                src={safeLogoUrl}
                 alt={companyName}
                 className="w-full h-full object-contain p-1"
                 onError={() => setLogoError(true)}

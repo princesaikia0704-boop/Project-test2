@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { formatCurrency } from "@/lib/utils";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 import { Product, Category } from "@/lib/db/schema";
 import {
   Search,
@@ -388,6 +389,16 @@ export default function CatalogPage() {
 
   // Image upload handler
   const handleImageUpload = async (file: File) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setUploadError("Unsupported image format. Please use JPEG, PNG, WebP, or GIF.");
+      return;
+    }
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      setUploadError("Image must be between 1 byte and 5 MB.");
+      return;
+    }
+
     setUploadError(null);
     setIsUploading(true);
     try {
@@ -395,8 +406,10 @@ export default function CatalogPage() {
       form.append("file", file);
       const res = await fetch("/api/admin/upload", { method: "POST", body: form });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
-      setProductForm((prev) => ({ ...prev, imageUrl: data.url }));
+      if (!res.ok) throw new Error(data.message || data.error || "Upload failed");
+      const safeUrl = sanitizeSafeUrl(data.url, { allowRelative: true });
+      if (!safeUrl) throw new Error("Invalid image URL returned by server");
+      setProductForm((prev) => ({ ...prev, imageUrl: safeUrl }));
     } catch (err: any) {
       setUploadError(err.message || "Upload failed");
     } finally {
@@ -554,9 +567,9 @@ export default function CatalogPage() {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            {product.imageUrl ? (
+                            {sanitizeSafeUrl(product.imageUrl) ? (
                               <img
-                                src={product.imageUrl}
+                                src={sanitizeSafeUrl(product.imageUrl) || ""}
                                 alt={product.name}
                                 className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-slate-800"
                               />
@@ -859,11 +872,11 @@ export default function CatalogPage() {
                   Product Image
                 </label>
 
-                {/* Preview strip — shown when an image URL exists */}
-                {productForm.imageUrl && (
+                {/* Preview strip — shown when a valid image URL exists */}
+                {sanitizeSafeUrl(productForm.imageUrl) && (
                   <div className="flex items-center gap-3 mb-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                     <img
-                      src={productForm.imageUrl}
+                      src={sanitizeSafeUrl(productForm.imageUrl) || ""}
                       alt="Preview"
                       className="w-14 h-14 rounded-lg object-cover bg-slate-200 dark:bg-slate-700 shrink-0"
                     />
@@ -916,7 +929,7 @@ export default function CatalogPage() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];

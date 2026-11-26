@@ -47,8 +47,8 @@ function loadEnv() {
 
 loadEnv();
 
-const dbUrl = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
-if (!dbUrl) {
+const rawDbUrl = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
+if (!rawDbUrl) {
   console.error("❌  No DATABASE_URL found. Set it in .env.local first.");
   process.exit(1);
 }
@@ -57,7 +57,15 @@ if (process.env.MOCK_DATABASE === "true") {
   process.exit(1);
 }
 
-const sql = neon(dbUrl);
+const parsedDbUrl = new URL(rawDbUrl);
+if (
+  parsedDbUrl.hostname !== "localhost" &&
+  parsedDbUrl.hostname !== "127.0.0.1" &&
+  !parsedDbUrl.searchParams.has("sslmode")
+) {
+  parsedDbUrl.searchParams.set("sslmode", "require");
+}
+const sql = neon(parsedDbUrl.toString());
 const db = drizzle(sql, { schema });
 
 async function seed() {

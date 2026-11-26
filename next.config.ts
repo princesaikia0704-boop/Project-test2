@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import { getSecurityHeadersRecord } from "./src/lib/security/headers";
+
+const securityHeaders = Object.entries(getSecurityHeadersRecord()).map(([key, value]) => ({
+  key,
+  value,
+}));
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -21,10 +27,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "pub-*.r2.dev",
       },
-      {
-        protocol: "http",
-        hostname: "localhost",
-      },
+      ...(process.env.NODE_ENV !== "production"
+        ? [
+            {
+              protocol: "http" as const,
+              hostname: "localhost",
+            },
+          ]
+        : []),
     ],
   },
   experimental: {
@@ -36,24 +46,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/(.*)",
-        headers: [
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-        ],
+        headers: securityHeaders,
       },
     ];
   },

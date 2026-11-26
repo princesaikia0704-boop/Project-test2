@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { categoryRepo } from "@/repositories/category.repo";
+import { categorySchema, updateCategorySchema } from "@/lib/validators/store-config.schema";
+import { auditRepo } from "@/repositories/audit.repo";
 
 export const GET = withApiReliability(
   async () => {
@@ -18,9 +20,14 @@ export const GET = withApiReliability(
 
 export const POST = withApiReliability(
   async (req: NextRequest) => {
-    let body: any;
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "ValidationError",
@@ -29,32 +36,16 @@ export const POST = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
+    const parsed = categorySchema.safeParse(rawBody);
+    if (!parsed.success) {
       return createErrorResponse(
         "ValidationError",
-        "Category name and slug are required",
+        parsed.error.issues[0]?.message || "Invalid category payload",
         400
       );
     }
 
-    if (!body.name || !body.slug || typeof body.name !== "string" || typeof body.slug !== "string") {
-      return createErrorResponse(
-        "ValidationError",
-        "Category name and slug are required",
-        400
-      );
-    }
-
-    const cleanName = body.name.trim();
-    const cleanSlug = body.slug.trim();
-
-    if (!cleanName || !cleanSlug) {
-      return createErrorResponse(
-        "ValidationError",
-        "Category name and slug are required",
-        400
-      );
-    }
+    const { name: cleanName, slug: cleanSlug, parentId, isActive, sortOrder } = parsed.data;
 
     const existingCategories = await categoryRepo.listCategories();
     const slugConflict = existingCategories.some(
@@ -72,10 +63,23 @@ export const POST = withApiReliability(
     const category = await categoryRepo.createCategory({
       name: cleanName,
       slug: cleanSlug,
-      parentId: body.parentId || null,
-      isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
-      sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : 0,
+      parentId: parentId || null,
+      isActive,
+      sortOrder,
     });
+
+    try {
+      await auditRepo.record({
+        adminUserId: authUser.id,
+        action: "CREATE",
+        entityType: "CATEGORY",
+        entityId: category.id,
+        oldValue: null,
+        newValue: JSON.stringify({ name: category.name, slug: category.slug }),
+      });
+    } catch {
+      // non-fatal
+    }
 
     return NextResponse.json(
       {
@@ -85,14 +89,19 @@ export const POST = withApiReliability(
       { status: 201 }
     );
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );
 
 export const PATCH = withApiReliability(
   async (req: NextRequest) => {
-    let body: any;
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "ValidationError",
@@ -101,67 +110,59 @@ export const PATCH = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
+    const parsed = updateCategorySchema.safeParse(rawBody);
+    if (!parsed.success) {
       return createErrorResponse(
         "ValidationError",
-        "Category payload is required",
+        parsed.error.issues[0]?.message || "Invalid category update payload",
         400
       );
     }
 
-    if (!body.id || typeof body.id !== "string") {
+    const { id, name, slug, parentId, isActive, sortOrder } = parsed.data;
+
+    if (parentId && parentId === id) {
       return createErrorResponse(
         "ValidationError",
-        "Category ID is required",
+        "Category cannot be its own parent",
         400
       );
     }
 
-    const updateData: any = {};
-    if (body.name !== undefined) {
-      const cleanName = String(body.name).trim();
-      if (!cleanName) {
-        return createErrorResponse(
-          "ValidationError",
-          "Category name cannot be empty",
-          400
-        );
-      }
-      updateData.name = cleanName;
-    }
-
-    if (body.slug !== undefined) {
-      const cleanSlug = String(body.slug).trim();
-      if (!cleanSlug) {
-        return createErrorResponse(
-          "ValidationError",
-          "Category slug cannot be empty",
-          400
-        );
-      }
+    const updateData: Record<string, unknown> = {};
+    if (name !== undefined) updateData.name = name;
+    if (slug !== undefined) {
       const existingCategories = await categoryRepo.listCategories();
       const slugConflict = existingCategories.some(
-        (c) =>
-          c.id !== body.id &&
-          c.slug.toLowerCase() === cleanSlug.toLowerCase()
+        (c) => c.id !== id && c.slug.toLowerCase() === slug.toLowerCase()
       );
       if (slugConflict) {
         return createErrorResponse(
           "SlugConflict",
-          `Category slug '${cleanSlug}' already exists`,
+          `Category slug '${slug}' already exists`,
           409
         );
       }
-      updateData.slug = cleanSlug;
+      updateData.slug = slug;
     }
-
-    if (body.parentId !== undefined) updateData.parentId = body.parentId;
-    if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
-    if (body.sortOrder !== undefined)
-      updateData.sortOrder = typeof body.sortOrder === "number" ? body.sortOrder : 0;
+    if (parentId !== undefined) updateData.parentId = parentId;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
 
     try {
-      const updatedCategory = await categoryRepo.updateCategory(body.id, updateData);
+      const updatedCategory = await categoryRepo.updateCategory(id, updateData);
+      try {
+        await auditRepo.record({
+          adminUserId: authUser.id,
+          action: "UPDATE",
+          entityType: "CATEGORY",
+          entityId: id,
+          oldValue: null,
+          newValue: JSON.stringify(updateData),
+        });
+      } catch {
+        // non-fatal
+      }
       return NextResponse.json(
         {
           success: true,
@@ -173,12 +174,12 @@ export const PATCH = withApiReliability(
       if (err.message && err.message.includes("not found")) {
         return createErrorResponse(
           "CategoryNotFound",
-          `Category with ID '${body.id}' not found`,
+          `Category with ID '${id}' not found`,
           404
         );
       }
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );

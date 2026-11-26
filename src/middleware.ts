@@ -1,227 +1,49 @@
 /**
- * Corporate Office Store - Edge Authentication, RBAC & Rate Limiting Middleware
- * Next.js 15 App Router - Edge Runtime (<5ms SLA)
+ * Corporate Office Store - Zero-Trust Edge Security, Auth, RBAC & Rate-Limiting Middleware
+ * Next.js 15 App Router - Edge Runtime
  *
  * Implements:
- * - Feature F13: Edge Middleware Auth & RBAC Guard (EMPLOYEE, MANAGER, ADMIN)
- * - Feature F14: Edge Rate Limiting Guard (100 req/min sliding window, fail-open)
+ * - Untrusted identity header stripping (x-user-*, x-department-id)
+ * - Production HTTPS enforcement
+ * - Explicit CORS allowlist & CSRF Origin verification
+ * - Multi-tier distributed sliding-window rate limiting
+ * - Clerk JWT / Signed HttpOnly Cookie authentication & strict RBAC
+ * - Enterprise Security Headers (HSTS, CSP, XFO, XCTO, Referrer-Policy, Permissions-Policy)
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { normalizeDepartmentUuid, normalizeUserUuid } from "@/lib/utils";
+import { clerkMiddleware } from "@clerk/nextjs/server";
+import { isClerkConfigured, isDemoAuthEnabled } from "@/lib/mock/utils";
+import {
+  SESSION_COOKIE_NAME,
+  UserRole,
+  verifySessionToken,
+} from "@/lib/auth/session";
+import { applySecurityHeaders } from "@/lib/security/headers";
+import { applyCorsHeaders, isOriginAllowed } from "@/lib/security/cors";
+import { verifyCsrfOrigin } from "@/lib/security/csrf";
+import {
+  evaluateRateLimitDistributed,
+  extractTrustedClientIp,
+  RateLimitResult,
+  selectRateLimitPolicy,
+} from "@/lib/security/rate-limit";
+import { logSecurityEvent } from "@/lib/security/logger";
 
-export type UserRole = "EMPLOYEE" | "MANAGER" | "ADMIN";
+export type { UserRole };
 
-export interface ResolvedPersona {
-  id: string;
-  role: UserRole;
-  departmentId: string;
-  name?: string;
-  email?: string;
-}
-
-// Canonical Persona Catalog for Test Token & Mock Resolution
-const KNOWN_PERSONAS: Record<string, ResolvedPersona> = {
-  "user-alice-emp": {
-    id: "30000000-0000-0000-0000-000000000001",
-    role: "EMPLOYEE",
-    departmentId: "10000000-0000-0000-0000-000000000001",
-    name: "Alice Engineer",
-    email: "alice@company.com",
-  },
-  "user-bob-emp": {
-    id: "30000000-0000-0000-0000-000000000004",
-    role: "EMPLOYEE",
-    departmentId: "10000000-0000-0000-0000-000000000001",
-    name: "Bob Staff Engineer",
-    email: "bob@company.com",
-  },
-  "user-carol-mgr": {
-    id: "30000000-0000-0000-0000-000000000002",
-    role: "MANAGER",
-    departmentId: "10000000-0000-0000-0000-000000000001",
-    name: "Carol Manager",
-    email: "carol@company.com",
-  },
-  "user-dave-adm": {
-    id: "30000000-0000-0000-0000-000000000003",
-    role: "ADMIN",
-    departmentId: "10000000-0000-0000-0000-000000000005",
-    name: "Dave Administrator",
-    email: "dave@company.com",
-  },
-};
-
-// -----------------------------------------------------------------------------
-// 1. Sliding Window Rate Limiter (In-Memory Fail-Open Engine)
-// -----------------------------------------------------------------------------
-
-interface RateLimitResult {
-  success: boolean;
-  limit: number;
-  remaining: number;
-  reset: number;
-}
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __edgeRateLimitStore: Map<string, number[]> | undefined;
-}
-
-function getRateLimitStore(): Map<string, number[]> {
-  if (!globalThis.__edgeRateLimitStore) {
-    globalThis.__edgeRateLimitStore = new Map<string, number[]>();
-  }
-  return globalThis.__edgeRateLimitStore;
-}
-
-export function evaluateRateLimit(
-  ip: string,
-  maxLimit = 100,
-  windowMs = 60_000
-): RateLimitResult {
-  try {
-    const now = Date.now();
-    const store = getRateLimitStore();
-    const existing = store.get(ip) || [];
-
-    // Filter out timestamps older than the sliding window
-    const timestamps = existing.filter((t) => now - t < windowMs);
-    timestamps.push(now);
-    store.set(ip, timestamps);
-
-    const remaining = Math.max(0, maxLimit - timestamps.length);
-    const reset = Math.ceil((now + windowMs) / 1000);
-    const success = timestamps.length <= maxLimit;
-
-    return {
-      success,
-      limit: maxLimit,
-      remaining,
-      reset,
-    };
-  } catch {
-    // Fail-open fallback: never block healthy traffic on rate-limiter failure
-    return {
-      success: true,
-      limit: maxLimit,
-      remaining: maxLimit,
-      reset: Math.ceil((Date.now() + windowMs) / 1000),
-    };
+function stripUntrustedIdentityHeaders(headers: Headers): void {
+  const spoofable = [
+    "x-user-id",
+    "x-user-role",
+    "x-user-department-id",
+    "x-department-id",
+    "x-auth-verified",
+  ];
+  for (const h of spoofable) {
+    headers.delete(h);
   }
 }
-
-export function extractClientIp(req: NextRequest): string {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0].trim();
-    if (firstIp) return firstIp;
-  }
-  const realIp = req.headers.get("x-real-ip");
-  if (realIp && realIp.trim()) return realIp.trim();
-  const cfIp = req.headers.get("cf-connecting-ip");
-  if (cfIp && cfIp.trim()) return cfIp.trim();
-  return "127.0.0.1";
-}
-
-// -----------------------------------------------------------------------------
-// 2. Mock & Clerk Edge Persona Resolver
-// -----------------------------------------------------------------------------
-
-export function resolveEdgePersona(req: NextRequest): ResolvedPersona | null {
-  // A. Check explicit persona headers (highest priority, used by TestClient & proxies)
-  const headerRole = req.headers.get("x-user-role");
-  const headerUserId = req.headers.get("x-user-id");
-  const headerDeptId =
-    req.headers.get("x-user-department-id") || req.headers.get("x-department-id");
-
-  if (headerRole && headerUserId) {
-    const roleUpper = headerRole.toUpperCase() as UserRole;
-    if (roleUpper === "EMPLOYEE" || roleUpper === "MANAGER" || roleUpper === "ADMIN") {
-      const dept = headerDeptId || KNOWN_PERSONAS[headerUserId]?.departmentId;
-      return {
-        id: normalizeUserUuid(headerUserId),
-        role: roleUpper,
-        departmentId: normalizeDepartmentUuid(dept),
-        name: KNOWN_PERSONAS[headerUserId]?.name || headerUserId,
-        email: KNOWN_PERSONAS[headerUserId]?.email || `${headerUserId}@company.local`,
-      };
-    }
-  }
-
-  // B. Check Bearer mock_jwt tokens: Bearer mock_jwt_<role>_<userId>
-  const authHeader = req.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer mock_jwt_")) {
-    const tokenPayload = authHeader.replace("Bearer mock_jwt_", "");
-    const parts = tokenPayload.split("_");
-    if (parts.length >= 2) {
-      const rawRole = parts[0].toUpperCase() as UserRole;
-      const rawUserId = parts.slice(1).join("_");
-      const matched = KNOWN_PERSONAS[rawUserId];
-
-      if (rawRole === "EMPLOYEE" || rawRole === "MANAGER" || rawRole === "ADMIN") {
-        const dept = headerDeptId || matched?.departmentId;
-        return {
-          id: normalizeUserUuid(matched?.id || rawUserId),
-          role: rawRole,
-          departmentId: normalizeDepartmentUuid(dept),
-          name: matched?.name || rawUserId,
-          email: matched?.email || `${rawUserId}@company.local`,
-        };
-      }
-    }
-  }
-
-  // C. Fallback for Known Persona IDs in headerUserId alone
-  if (headerUserId && KNOWN_PERSONAS[headerUserId]) {
-    return KNOWN_PERSONAS[headerUserId];
-  }
-
-  // D. Check Cookies for browser sessions
-  const cookiePersonaId = req.cookies.get("mock_persona")?.value;
-  if (cookiePersonaId && KNOWN_PERSONAS[cookiePersonaId]) {
-    return KNOWN_PERSONAS[cookiePersonaId];
-  }
-
-  // E. Fallback: Parse mock_token cookie
-  const cookieToken = req.cookies.get("mock_token")?.value;
-  if (cookieToken && cookieToken.startsWith("mock_jwt_")) {
-    const parts = cookieToken.replace("mock_jwt_", "").split("_");
-    if (parts.length >= 2) {
-      const rawRole = parts[0].toUpperCase() as UserRole;
-      const rawUserId = parts.slice(1).join("_");
-      const matched = KNOWN_PERSONAS[rawUserId];
-      return {
-        id: normalizeUserUuid(matched?.id || rawUserId),
-        role: rawRole,
-        departmentId: normalizeDepartmentUuid(matched?.departmentId),
-        name: matched?.name || rawUserId,
-        email: matched?.email || `${rawUserId}@company.local`,
-      };
-    }
-  }
-
-  // F. Fallback: Parse mock_user_role cookie
-  const cookieRole = req.cookies.get("mock_user_role")?.value?.toUpperCase() as UserRole | undefined;
-  if (cookieRole && (cookieRole === "EMPLOYEE" || cookieRole === "MANAGER" || cookieRole === "ADMIN")) {
-    const defaultId = cookieRole === "ADMIN" ? "user-dave-adm" : cookieRole === "MANAGER" ? "user-carol-mgr" : "user-alice-emp";
-    const uid = cookiePersonaId || defaultId;
-    const matched = KNOWN_PERSONAS[uid];
-    return {
-      id: normalizeUserUuid(matched?.id || uid),
-      role: cookieRole,
-      departmentId: normalizeDepartmentUuid(matched?.departmentId),
-      name: matched?.name || uid,
-      email: matched?.email || `${uid}@company.local`,
-    };
-  }
-
-  return null;
-}
-
-// -----------------------------------------------------------------------------
-// 3. Response Helpers
-// -----------------------------------------------------------------------------
 
 function applyRateLimitHeaders(headers: Headers, rl: RateLimitResult): void {
   headers.set("x-ratelimit-limit", String(rl.limit));
@@ -233,14 +55,15 @@ function createJsonErrorResponse(
   error: string,
   message: string,
   statusCode: number,
-  rl: RateLimitResult,
+  rl?: RateLimitResult,
   extraHeaders?: Record<string, string>
 ): NextResponse {
   const headers = new Headers({
     "content-type": "application/json",
     ...(extraHeaders || {}),
   });
-  applyRateLimitHeaders(headers, rl);
+  if (rl) applyRateLimitHeaders(headers, rl);
+  applySecurityHeaders(headers);
 
   return new NextResponse(
     JSON.stringify({ error, message, statusCode }),
@@ -248,19 +71,113 @@ function createJsonErrorResponse(
   );
 }
 
-// -----------------------------------------------------------------------------
-// 4. Main Edge Middleware Handler
-// -----------------------------------------------------------------------------
+function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    pathname === "/api/health" ||
+    pathname === "/api/products" ||
+    pathname.startsWith("/api/products/") ||
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/workers/")
+  );
+}
 
-export async function middleware(req: NextRequest): Promise<NextResponse> {
-  // Normalize pathname to prevent path traversal bypasses (e.g. /api/admin/../admin/store-config)
+function isManagerAllowedPath(pathname: string, method: string): boolean {
+  if (
+    pathname === "/admin" ||
+    pathname === "/admin/approvals" ||
+    pathname.startsWith("/admin/approvals/") ||
+    pathname === "/admin/settings" ||
+    pathname.startsWith("/admin/settings/")
+  ) {
+    return true;
+  }
+
+  if (
+    pathname === "/api/admin/approvals" ||
+    pathname.startsWith("/api/admin/approvals/") ||
+    pathname === "/api/admin/orders" ||
+    pathname.startsWith("/api/admin/orders/") ||
+    pathname === "/api/admin/kpis" ||
+    pathname.startsWith("/api/admin/kpis/") ||
+    pathname === "/api/admin/billing/export" ||
+    pathname.startsWith("/api/admin/billing/")
+  ) {
+    return true;
+  }
+
+  // Managers can READ products/categories/store-config, but CANNOT mutate global settings, catalog, stock, uploads, audit-logs, or seed
+  if (
+    method === "GET" &&
+    (pathname === "/api/admin/products" ||
+      pathname === "/api/admin/categories" ||
+      pathname === "/api/admin/store-config")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+async function handleCoreMiddleware(
+  req: NextRequest,
+  clerkSession?: { userId: string | null; role?: UserRole | null }
+): Promise<NextResponse> {
   const pathname = new URL(req.url).pathname;
 
-  // 1. Rate Limiting Check (Feature F14)
-  const clientIp = extractClientIp(req);
-  const rateLimit = evaluateRateLimit(clientIp, 100, 60_000);
+  // 1. HTTPS Enforcement in Production (ignore local loopback health/dev traffic)
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "").toLowerCase();
+  const forwardedProto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase();
+  const isLocalHost = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+
+  if (process.env.NODE_ENV === "production" && forwardedProto === "http" && !isLocalHost) {
+    const httpsUrl = new URL(req.url);
+    httpsUrl.protocol = "https:";
+    const redirect = NextResponse.redirect(httpsUrl, 308);
+    applySecurityHeaders(redirect.headers);
+    return redirect;
+  }
+
+  const clientIp = extractTrustedClientIp(req);
+
+  // 2. Explicit CORS Policy Check on /api/*
+  const originHeader = req.headers.get("origin");
+  if (pathname.startsWith("/api/") && originHeader) {
+    if (!isOriginAllowed(req, originHeader)) {
+      logSecurityEvent({
+        event: "CORS_ORIGIN_BLOCKED",
+        severity: "HIGH",
+        ip: clientIp,
+        path: pathname,
+        method: req.method,
+        reason: `Rejected CORS origin: ${originHeader}`,
+      });
+      return createJsonErrorResponse("Forbidden", "Origin is not in CORS allowlist", 403);
+    }
+
+    if (req.method === "OPTIONS") {
+      const preflight = new NextResponse(null, { status: 204 });
+      applyCorsHeaders(preflight.headers, new URL(originHeader).origin);
+      applySecurityHeaders(preflight.headers);
+      return preflight;
+    }
+  }
+
+  // 3. Multi-Tier Rate Limiting (Strict on /api/auth/*, sensitive mutations, and public APIs)
+  const policy = selectRateLimitPolicy(pathname, req.method);
+  const rateLimit = await evaluateRateLimitDistributed(clientIp, policy);
 
   if (!rateLimit.success) {
+    logSecurityEvent({
+      event: "RATE_LIMIT_TRIGGERED",
+      severity: "WARN",
+      ip: clientIp,
+      path: pathname,
+      method: req.method,
+      reason: `Exceeded ${policy.bucket} quota (${policy.limit}/min)`,
+    });
     return createJsonErrorResponse(
       "RateLimitExceeded",
       "Rate limit quota exceeded. Slow down.",
@@ -270,151 +187,168 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // 2. Identify Public Routes
-  const isPublicRoute =
-    pathname === "/api/health" ||
-    pathname === "/api/admin/seed" ||
-    pathname === "/login" ||
-    pathname.startsWith("/login/") ||
-    pathname.startsWith("/(auth)/") ||
-    pathname.startsWith("/api/workers/") ||
-    pathname === "/api/products" ||
-    pathname.startsWith("/api/products/") ||
-    pathname === "/";           // catalog is public; /cart /orders /admin all require login
+  // 4. CSRF Origin Verification on state-changing requests
+  const csrfCheck = verifyCsrfOrigin(req);
+  if (!csrfCheck.ok) {
+    logSecurityEvent({
+      event: "CSRF_ORIGIN_BLOCKED",
+      severity: "HIGH",
+      ip: clientIp,
+      path: pathname,
+      method: req.method,
+      reason: csrfCheck.reason,
+    });
+    return createJsonErrorResponse("Forbidden", "CSRF origin check failed", 403, rateLimit);
+  }
 
-  // 3. Resolve Persona / JWT
-  const persona = resolveEdgePersona(req);
+  // 5. Authenticate via Clerk OR Signed HttpOnly Session Cookie (NEVER raw client headers or mock_* cookies)
+  let sessionUserId: string | null = null;
+  let sessionRole: UserRole | null = null;
 
-  // 4. Authenticate Protected Routes (Feature F13)
-  if (!isPublicRoute && !persona) {
-    // API routes return 401 JSON
+  if (clerkSession?.userId) {
+    sessionUserId = clerkSession.userId;
+    sessionRole = clerkSession.role ?? null;
+  } else {
+    const rawCookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const verified = await verifySessionToken(rawCookie);
+    if (verified && (!verified.demo || isDemoAuthEnabled())) {
+      sessionUserId = verified.sub;
+      sessionRole = verified.role;
+    }
+  }
+
+  const publicRoute = isPublicPath(pathname);
+
+  if (!publicRoute && !sessionUserId) {
     if (pathname.startsWith("/api/")) {
       return createJsonErrorResponse(
         "Unauthorized",
-        "Missing or invalid authentication token",
+        "Missing or invalid authentication session",
         401,
         rateLimit
       );
     }
-    // Web pages redirect to /login
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirect_url", pathname);
     const redirectResponse = NextResponse.redirect(loginUrl);
     applyRateLimitHeaders(redirectResponse.headers, rateLimit);
+    applySecurityHeaders(redirectResponse.headers);
     return redirectResponse;
   }
 
-  // 5. RBAC Route Guard Checks
-  if (persona) {
-    // ── Admin Guard: EMPLOYEE cannot access /admin/* ──
-    const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
+  // 6. Strict Server-Side Edge RBAC (API routes also independently enforce DB roles via withApiReliability)
+  const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
+  if (sessionUserId && sessionRole && isAdminRoute) {
+    const isAllowedEmployeeBrandingGet =
+      pathname === "/api/admin/store-config" && req.method === "GET";
 
-    if (isAdminRoute) {
-      // EMPLOYEE is forbidden from admin routes (except public database seed and store-config GET for branding)
-      const isAllowedEmployeeAdminRoute =
-        pathname === "/api/admin/seed" ||
-        (pathname === "/api/admin/store-config" && req.method === "GET");
+    if (sessionRole === "EMPLOYEE" && !isAllowedEmployeeBrandingGet) {
+      logSecurityEvent({
+        event: "RBAC_ACCESS_DENIED",
+        severity: "HIGH",
+        userId: sessionUserId,
+        role: sessionRole,
+        ip: clientIp,
+        path: pathname,
+        method: req.method,
+        reason: "Employee attempted admin route access",
+      });
 
-      if (persona.role === "EMPLOYEE" && !isAllowedEmployeeAdminRoute) {
-        if (pathname.startsWith("/api/")) {
-          return createJsonErrorResponse(
-            "Forbidden",
-            "Insufficient role permissions for administrative resource",
-            403,
-            rateLimit
-          );
-        }
-        const homeUrl = new URL("/", req.url);
-        const redirectResponse = NextResponse.redirect(homeUrl);
-        applyRateLimitHeaders(redirectResponse.headers, rateLimit);
-        return redirectResponse;
+      if (pathname.startsWith("/api/")) {
+        return createJsonErrorResponse(
+          "Forbidden",
+          "Insufficient role permissions for administrative resource",
+          403,
+          rateLimit
+        );
       }
+      const homeUrl = new URL("/", req.url);
+      const redirectResponse = NextResponse.redirect(homeUrl);
+      applyRateLimitHeaders(redirectResponse.headers, rateLimit);
+      applySecurityHeaders(redirectResponse.headers);
+      return redirectResponse;
+    }
 
-      // MANAGER permissions: Manager can access approvals, KPIs, billing, settings view, and audit logs
-      if (persona.role === "MANAGER") {
-        const isManagerAllowed =
-          pathname === "/admin" ||
-          pathname === "/admin/approvals" ||
-          pathname.startsWith("/admin/approvals/") ||
-          pathname === "/api/admin/approvals" ||
-          pathname.startsWith("/api/admin/approvals/") ||
-          pathname === "/api/admin/orders" ||
-          pathname.startsWith("/api/admin/orders/") ||
-          pathname === "/api/admin/kpis" ||
-          pathname.startsWith("/api/admin/kpis/") ||
-          pathname === "/api/admin/billing/export" ||
-          pathname.startsWith("/api/admin/billing") ||
-          pathname === "/admin/settings" ||
-          pathname.startsWith("/admin/settings") ||
-          pathname === "/api/admin/store-config" ||
-          pathname.startsWith("/api/admin/store-config") ||
-          pathname === "/admin/audit-logs" ||
-          pathname.startsWith("/admin/audit-logs") ||
-          pathname === "/api/admin/audit-logs" ||
-          pathname.startsWith("/api/admin/audit-logs") ||
-          pathname === "/admin/catalog" ||
-          pathname.startsWith("/admin/catalog") ||
-          pathname === "/api/admin/products" ||
-          pathname.startsWith("/api/admin/products") ||
-          pathname === "/api/admin/categories" ||
-          pathname.startsWith("/api/admin/categories");
+    if (sessionRole === "MANAGER" && !isManagerAllowedPath(pathname, req.method)) {
+      logSecurityEvent({
+        event: "RBAC_ACCESS_DENIED",
+        severity: "HIGH",
+        userId: sessionUserId,
+        role: sessionRole,
+        ip: clientIp,
+        path: pathname,
+        method: req.method,
+        reason: "Manager attempted restricted ADMIN-only resource access",
+      });
 
-        const isRestrictedAdminAction =
-          pathname.startsWith("/api/admin/products") ||
-          pathname.startsWith("/api/admin/categories");
-
-        if (isRestrictedAdminAction && !isManagerAllowed) {
-          if (pathname.startsWith("/api/")) {
-            return createJsonErrorResponse(
-              "Forbidden",
-              "Insufficient role permissions for administrative resource",
-              403,
-              rateLimit
-            );
-          }
-          const approvalsUrl = new URL("/admin/approvals", req.url);
-          const redirectResponse = NextResponse.redirect(approvalsUrl);
-          applyRateLimitHeaders(redirectResponse.headers, rateLimit);
-          return redirectResponse;
-        }
+      if (pathname.startsWith("/api/")) {
+        return createJsonErrorResponse(
+          "Forbidden",
+          "Admin privileges required for this resource",
+          403,
+          rateLimit
+        );
       }
+      const approvalsUrl = new URL("/admin/approvals", req.url);
+      const redirectResponse = NextResponse.redirect(approvalsUrl);
+      applyRateLimitHeaders(redirectResponse.headers, rateLimit);
+      applySecurityHeaders(redirectResponse.headers);
+      return redirectResponse;
     }
   }
 
-  // 6. Header Propagation for Downstream Route Handlers & Server Components
-  const requestHeaders = new Headers(req.headers);
-  if (persona) {
-    requestHeaders.set("x-user-id", persona.id);
-    requestHeaders.set("x-user-role", persona.role);
-    requestHeaders.set("x-user-department-id", persona.departmentId);
-    requestHeaders.set("x-department-id", persona.departmentId);
-  }
+  // 7. Strip untrusted incoming identity headers before passing request downstream
+  const sanitizedHeaders = new Headers(req.headers);
+  stripUntrustedIdentityHeaders(sanitizedHeaders);
 
   const response = NextResponse.next({
     request: {
-      headers: requestHeaders,
+      headers: sanitizedHeaders,
     },
   });
 
-  // Attach rate limit headers to all outgoing responses
+  if (pathname.startsWith("/api/") && originHeader && isOriginAllowed(req, originHeader)) {
+    applyCorsHeaders(response.headers, new URL(originHeader).origin);
+  }
   applyRateLimitHeaders(response.headers, rateLimit);
+  applySecurityHeaders(response.headers);
 
   return response;
 }
 
-// -----------------------------------------------------------------------------
-// 5. Config Matcher
-// -----------------------------------------------------------------------------
+let cachedClerkHandler:
+  | ReturnType<typeof clerkMiddleware>
+  | undefined;
+
+function getClerkMiddlewareHandler() {
+  if (!cachedClerkHandler) {
+    cachedClerkHandler = clerkMiddleware(async (auth, req: NextRequest) => {
+      const { userId, sessionClaims } = await auth();
+      const metadataRole = (sessionClaims?.metadata as { role?: string } | undefined)?.role;
+      const normalizedRole =
+        metadataRole === "ADMIN" || metadataRole === "MANAGER" || metadataRole === "EMPLOYEE"
+          ? metadataRole
+          : null;
+
+      return await handleCoreMiddleware(req, {
+        userId: userId ?? null,
+        role: normalizedRole,
+      });
+    });
+  }
+  return cachedClerkHandler;
+}
+
+export default async function middleware(req: NextRequest, event: any) {
+  if (isClerkConfigured()) {
+    const clerkHandler = getClerkMiddlewareHandler();
+    return await clerkHandler(req, event);
+  }
+  return await handleCoreMiddleware(req);
+}
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images and static files (*.svg, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.css, *.js)
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)",
   ],
 };

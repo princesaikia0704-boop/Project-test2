@@ -8,6 +8,7 @@ import { useCart } from "@/lib/cart-context";
 import { useCheckout } from "@/hooks/useCheckout";
 import { BudgetMeter } from "@/components/storefront/BudgetMeter";
 import { formatCurrency } from "@/lib/utils";
+import { sanitizeSafeUrl } from "@/lib/security/url";
 import {
   X,
   Trash2,
@@ -105,15 +106,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             <>
               {/* Line Items List */}
               <div className="space-y-3">
-                {items.map(({ product, quantity }) => (
+                {items.map(({ product, quantity }) => {
+                  const safeImageUrl = sanitizeSafeUrl(product.imageUrl);
+                  return (
                   <div
                     key={product.id}
                     className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60"
                   >
                     <div className="relative w-14 h-14 rounded bg-slate-200 dark:bg-slate-700 overflow-hidden shrink-0">
-                      {product.imageUrl ? (
+                      {safeImageUrl ? (
                         <Image
-                          src={product.imageUrl}
+                          src={safeImageUrl}
                           alt={product.name}
                           fill
                           className="object-cover"
@@ -173,7 +176,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Error Message */}

@@ -48,6 +48,13 @@ export interface IOrderRepository {
     rejectionReason?: string | null,
     tx?: any
   ): Promise<Order>;
+  updatePendingStatusAtomically(
+    orderId: string,
+    status: Extract<Order["status"], "APPROVED" | "REJECTED" | "CANCELLED">,
+    approvedByUserId?: string | null,
+    rejectionReason?: string | null,
+    tx?: any
+  ): Promise<Order>;
   cancelOrder(orderId: string, userId: string, tx?: any): Promise<Order>;
 }
 
@@ -289,17 +296,83 @@ export class OrderRepository implements IOrderRepository {
     return updated;
   }
 
+  async updatePendingStatusAtomically(
+    orderId: string,
+    status: Extract<Order["status"], "APPROVED" | "REJECTED" | "CANCELLED">,
+    approvedByUserId?: string | null,
+    rejectionReason?: string | null,
+    tx?: any
+  ): Promise<Order> {
+    if (isDatabaseMocked()) {
+      const existing = mockDataStore.getOrderById(orderId);
+      if (!existing) {
+        const notFoundErr = new Error(`Order not found: ${orderId}`) as Error & { statusCode?: number };
+        notFoundErr.name = "OrderNotFound";
+        notFoundErr.statusCode = 404;
+        throw notFoundErr;
+      }
+      if (existing.status !== "PENDING_APPROVAL") {
+        const conflictErr = new Error(`Order is already in state ${existing.status}`) as Error & { statusCode?: number };
+        conflictErr.name = "OrderAlreadyResolved";
+        conflictErr.statusCode = 409;
+        throw conflictErr;
+      }
+      return mockDataStore.updateOrderStatus(
+        orderId,
+        status,
+        approvedByUserId ?? null,
+        rejectionReason ?? null
+      ) as unknown as Order;
+    }
+
+    const client = tx || db;
+    const updatePayload: Partial<NewOrder> = {
+      status,
+      updatedAt: new Date(),
+    };
+    if (approvedByUserId !== undefined) {
+      updatePayload.approvedByUserId = approvedByUserId ? normalizeUserUuid(approvedByUserId) : null;
+    }
+    if (rejectionReason !== undefined) {
+      updatePayload.rejectionReason = rejectionReason;
+    }
+
+    const [updated] = await client
+      .update(schema.orders)
+      .set(updatePayload)
+      .where(and(eq(schema.orders.id, orderId), eq(schema.orders.status, "PENDING_APPROVAL")))
+      .returning();
+
+    if (!updated) {
+      const conflictErr = new Error(`Order ${orderId} was already resolved or does not exist`) as Error & { statusCode?: number };
+      conflictErr.name = "OrderAlreadyResolved";
+      conflictErr.statusCode = 409;
+      throw conflictErr;
+    }
+
+    return updated;
+  }
+
   async cancelOrder(orderId: string, userId: string, tx?: any): Promise<Order> {
+    if (!userId || !userId.trim()) {
+      throw new Error("Unauthorized: User ID is required");
+    }
+
     const existing = await this.findByIdWithItems(orderId, tx);
     if (!existing) {
       throw new Error(`Order not found: ${orderId}`);
+    }
+
+    const normalizedUserId = normalizeUserUuid(userId);
+    if (existing.userId !== userId && existing.userId !== normalizedUserId) {
+      throw new Error("Forbidden: Cannot cancel order belonging to another user");
     }
 
     if (existing.status !== "PENDING_APPROVAL") {
       throw new Error(`InvalidOrderState: Cannot cancel order in state ${existing.status}`);
     }
 
-    return await this.updateStatus(orderId, "CANCELLED", null, null, tx);
+    return await this.updatePendingStatusAtomically(orderId, "CANCELLED", null, null, tx);
   }
 }
 

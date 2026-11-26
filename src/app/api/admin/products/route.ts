@@ -1,19 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { z } from "zod";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { productRepo } from "@/repositories/product.repo";
 import { auditRepo } from "@/repositories/audit.repo";
+import { createProductSchema, updateProductSchema } from "@/lib/validators/product.schema";
+import { safeIdentifierSchema } from "@/lib/validators/order.schema";
+
+const adminProductsQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  categoryId: safeIdentifierSchema.optional(),
+  lowStockOnly: z.boolean().optional(),
+});
 
 export const GET = withApiReliability(
   async (req: NextRequest) => {
     const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q") || undefined;
-    const categoryId = searchParams.get("categoryId") || undefined;
-    const lowStockOnly = searchParams.get("lowStockOnly") === "true";
+    const parsed = adminProductsQuerySchema.safeParse({
+      q: searchParams.get("q") || undefined,
+      categoryId: searchParams.get("categoryId") || undefined,
+      lowStockOnly: searchParams.get("lowStockOnly") === "true",
+    });
+
+    if (!parsed.success) {
+      return createErrorResponse(
+        "ValidationError",
+        parsed.error.issues[0]?.message || "Invalid query parameters",
+        400
+      );
+    }
 
     const { products } = await productRepo.listActive({
-      search: q,
-      categoryId,
-      lowStockOnly,
+      search: parsed.data.q,
+      categoryId: parsed.data.categoryId,
+      lowStockOnly: parsed.data.lowStockOnly,
     });
 
     return NextResponse.json(
@@ -30,9 +49,14 @@ export const GET = withApiReliability(
 
 export const POST = withApiReliability(
   async (req: NextRequest) => {
-    let body: any;
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "ValidationError",
@@ -41,61 +65,31 @@ export const POST = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
+    const parsed = createProductSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return createErrorResponse(
         "ValidationError",
-        "Product payload is required",
+        parsed.error.issues[0]?.message || "Invalid product payload",
         422
       );
     }
 
-    if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
-      return createErrorResponse(
-        "ValidationError",
-        "Product name is required",
-        422
-      );
-    }
-
-    if (typeof body.priceCents !== "number" || body.priceCents < 0) {
-      return createErrorResponse(
-        "ValidationError",
-        "Price must be non-negative",
-        422
-      );
-    }
-
-    if (
-      body.stockQuantity !== undefined &&
-      (typeof body.stockQuantity !== "number" || body.stockQuantity < 0)
-    ) {
-      return createErrorResponse(
-        "ValidationError",
-        "Stock quantity cannot be negative",
-        422
-      );
-    }
-
+    const data = parsed.data;
     const createdProduct = await productRepo.create({
-      name: body.name.trim(),
-      description: body.description ?? "",
-      sku: body.sku ?? null,
-      priceCents: body.priceCents,
-      stockQuantity: body.stockQuantity ?? 0,
-      lowStockThreshold: body.lowStockThreshold ?? 5,
-      categoryId: body.categoryId || "cat-stationery",
-      imageUrl: body.imageUrl ?? null,
-      isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
+      name: data.name,
+      description: data.description,
+      sku: data.sku ?? null,
+      priceCents: data.priceCents,
+      stockQuantity: data.stockQuantity,
+      lowStockThreshold: data.lowStockThreshold,
+      categoryId: data.categoryId,
+      imageUrl: data.imageUrl || null,
+      isActive: data.isActive,
     });
-
-    const adminUserId =
-      req.headers.get("x-user-id") ||
-      req.cookies.get("mock_persona")?.value ||
-      "user-dave-adm";
 
     try {
       await auditRepo.record({
-        adminUserId,
+        adminUserId: authUser.id,
         action: "CREATE",
         entityType: "PRODUCT",
         entityId: createdProduct.id,
@@ -109,7 +103,7 @@ export const POST = withApiReliability(
         }),
       });
     } catch (auditErr) {
-      console.error("Failed to write audit log for product creation:", auditErr);
+      console.error("Failed to write audit log for product creation");
     }
 
     return NextResponse.json(
@@ -120,14 +114,19 @@ export const POST = withApiReliability(
       { status: 201 }
     );
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );
 
 export const PATCH = withApiReliability(
   async (req: NextRequest) => {
-    let body: any;
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
         "ValidationError",
@@ -136,79 +135,47 @@ export const PATCH = withApiReliability(
       );
     }
 
-    if (!body || typeof body !== "object") {
+    const parsed = updateProductSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return createErrorResponse(
         "ValidationError",
-        "Product payload is required",
+        parsed.error.issues[0]?.message || "Invalid product update payload",
         422
       );
     }
 
-    if (!body.id || typeof body.id !== "string") {
-      return createErrorResponse(
-        "ValidationError",
-        "Product ID is required",
-        422
-      );
-    }
-
-    if (
-      body.priceCents !== undefined &&
-      (typeof body.priceCents !== "number" || body.priceCents < 0)
-    ) {
-      return createErrorResponse(
-        "ValidationError",
-        "Price must be non-negative",
-        422
-      );
-    }
-
-    if (
-      body.stockQuantity !== undefined &&
-      (typeof body.stockQuantity !== "number" || body.stockQuantity < 0)
-    ) {
-      return createErrorResponse(
-        "ValidationError",
-        "Stock quantity cannot be negative",
-        422
-      );
-    }
-
-    const updateData: any = {};
-    if (body.name !== undefined) updateData.name = String(body.name).trim();
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.sku !== undefined) updateData.sku = body.sku;
-    if (body.priceCents !== undefined) updateData.priceCents = body.priceCents;
-    if (body.categoryId !== undefined) updateData.categoryId = body.categoryId;
-    if (body.stockQuantity !== undefined) updateData.stockQuantity = body.stockQuantity;
-    if (body.lowStockThreshold !== undefined) updateData.lowStockThreshold = body.lowStockThreshold;
-    if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
-    if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
+    const { id, ...fields } = parsed.data;
+    const updateData: Record<string, unknown> = {};
+    if (fields.name !== undefined) updateData.name = fields.name;
+    if (fields.description !== undefined) updateData.description = fields.description;
+    if (fields.sku !== undefined) updateData.sku = fields.sku;
+    if (fields.priceCents !== undefined) updateData.priceCents = fields.priceCents;
+    if (fields.categoryId !== undefined) updateData.categoryId = fields.categoryId;
+    if (fields.stockQuantity !== undefined) updateData.stockQuantity = fields.stockQuantity;
+    if (fields.lowStockThreshold !== undefined) updateData.lowStockThreshold = fields.lowStockThreshold;
+    if (fields.imageUrl !== undefined) updateData.imageUrl = fields.imageUrl || null;
+    if (fields.isActive !== undefined) updateData.isActive = fields.isActive;
 
     try {
-      const existingProduct = await productRepo.findById(body.id);
+      const existingProduct = await productRepo.findById(id);
+      if (!existingProduct) {
+        return createErrorResponse("ProductNotFound", "Product not found", 404);
+      }
 
-      const updatedProduct = await productRepo.update(body.id, updateData);
-
-      const adminUserId =
-        req.headers.get("x-user-id") ||
-        req.cookies.get("mock_persona")?.value ||
-        "user-dave-adm";
+      const updatedProduct = await productRepo.update(id, updateData);
 
       try {
         await auditRepo.record({
-          adminUserId,
+          adminUserId: authUser.id,
           action: "UPDATE",
           entityType: "PRODUCT",
           entityId: updatedProduct.id,
-          oldValue: existingProduct
-            ? JSON.stringify({
-                name: existingProduct.name,
-                priceCents: existingProduct.priceCents,
-                stockQuantity: existingProduct.stockQuantity,
-                isActive: existingProduct.isActive,
-              })
-            : null,
+          oldValue: JSON.stringify({
+            name: existingProduct.name,
+            priceCents: existingProduct.priceCents,
+            stockQuantity: existingProduct.stockQuantity,
+            isActive: existingProduct.isActive,
+          }),
           newValue: JSON.stringify({
             name: updatedProduct.name,
             priceCents: updatedProduct.priceCents,
@@ -216,8 +183,8 @@ export const PATCH = withApiReliability(
             isActive: updatedProduct.isActive,
           }),
         });
-      } catch (auditErr) {
-        console.error("Failed to write audit log for product update:", auditErr);
+      } catch {
+        console.error("Failed to write audit log for product update");
       }
 
       return NextResponse.json(
@@ -229,58 +196,64 @@ export const PATCH = withApiReliability(
       );
     } catch (err: any) {
       if (err.message && err.message.includes("not found")) {
-        return createErrorResponse(
-          "ProductNotFound",
-          `Product with ID '${body.id}' not found`,
-          404
-        );
+        return createErrorResponse("ProductNotFound", "Product not found", 404);
       }
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );
 
 export const DELETE = withApiReliability(
   async (req: NextRequest) => {
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
+    }
+
     const { searchParams } = new URL(req.url);
-    let id = searchParams.get("id");
-    if (!id) {
+    let rawId = searchParams.get("id");
+    if (!rawId) {
       try {
         const body = await req.json();
-        id = body?.id;
+        rawId = body?.id;
       } catch {
-        // ignore json parse error
+        // ignore parse error
       }
     }
 
-    if (!id || typeof id !== "string") {
+    const idCheck = safeIdentifierSchema.safeParse(rawId);
+    if (!idCheck.success) {
       return createErrorResponse(
         "ValidationError",
-        "Product ID is required for deletion",
+        "Valid product ID is required for deletion",
         422
       );
     }
+    const id = idCheck.data;
 
     const existingProduct = await productRepo.findById(id);
     if (!existingProduct) {
-      return createErrorResponse(
-        "ProductNotFound",
-        `Product with ID '${id}' not found`,
-        404
-      );
+      return createErrorResponse("ProductNotFound", "Product not found", 404);
     }
 
-    await productRepo.delete(id);
-
-    const adminUserId =
-      req.headers.get("x-user-id") ||
-      req.cookies.get("mock_persona")?.value ||
-      "user-dave-adm";
+    try {
+      await productRepo.delete(id);
+    } catch (err: any) {
+      // Handle foreign-key references cleanly instead of leaking DB error details
+      if (err?.code === "23503" || /foreign key|constraint/i.test(err?.message || "")) {
+        return createErrorResponse(
+          "ProductInUse",
+          "Cannot delete product referenced by existing orders; deactivate it instead.",
+          409
+        );
+      }
+      throw err;
+    }
 
     try {
       await auditRepo.record({
-        adminUserId,
+        adminUserId: authUser.id,
         action: "DELETE",
         entityType: "PRODUCT",
         entityId: id,
@@ -292,8 +265,8 @@ export const DELETE = withApiReliability(
         }),
         newValue: null,
       });
-    } catch (auditErr) {
-      console.error("Failed to write audit log for product deletion:", auditErr);
+    } catch {
+      console.error("Failed to write audit log for product deletion");
     }
 
     return NextResponse.json(
@@ -304,5 +277,5 @@ export const DELETE = withApiReliability(
       { status: 200 }
     );
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );

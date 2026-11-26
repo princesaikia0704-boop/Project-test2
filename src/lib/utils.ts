@@ -124,10 +124,16 @@ export const DEPARTMENT_SLUG_TO_UUID: Record<string, string> = {
 };
 
 export function normalizeDepartmentUuid(deptId?: string | null): string {
-  if (!deptId) return "10000000-0000-0000-0000-000000000001";
-  if (isUuid(deptId)) return deptId;
-  const lower = deptId.toLowerCase().trim();
-  return DEPARTMENT_SLUG_TO_UUID[lower] || "10000000-0000-0000-0000-000000000001";
+  if (!deptId || typeof deptId !== "string" || !deptId.trim()) {
+    throw new Error("Department ID is required");
+  }
+  const trimmed = deptId.trim();
+  if (isUuid(trimmed)) return trimmed;
+  const mapped = DEPARTMENT_SLUG_TO_UUID[trimmed.toLowerCase()];
+  if (!mapped) {
+    throw new Error("Invalid department identifier");
+  }
+  return mapped;
 }
 
 export const USER_SLUG_TO_UUID: Record<string, string> = {
@@ -143,7 +149,7 @@ export const USER_SLUG_TO_UUID: Record<string, string> = {
 
 /**
  * Read a cookie value by name on the client. Returns null on SSR.
- * @example getCookieValue("mock_persona") => "user-alice-emp"
+ * @example getCookieValue("app_theme") => "dark"
  */
 export function getCookieValue(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -152,8 +158,14 @@ export function getCookieValue(name: string): string | null {
 }
 
 export function normalizeUserUuid(userId?: string | null): string {
-  if (!userId) return "30000000-0000-0000-0000-000000000001";
-  if (isUuid(userId)) return userId;
-  const lower = userId.toLowerCase().trim();
-  return USER_SLUG_TO_UUID[lower] || "30000000-0000-0000-0000-000000000001";
+  if (!userId || typeof userId !== "string" || !userId.trim()) {
+    throw new Error("User ID is required");
+  }
+  const trimmed = userId.trim();
+  if (isUuid(trimmed)) return trimmed;
+  const mapped = USER_SLUG_TO_UUID[trimmed.toLowerCase()];
+  if (!mapped) {
+    throw new Error("Invalid user identifier");
+  }
+  return mapped;
 }

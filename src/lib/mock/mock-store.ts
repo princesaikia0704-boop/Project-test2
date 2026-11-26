@@ -56,10 +56,20 @@ export interface AuditLogRecord {
   createdAt: Date;
 }
 
+export interface PasswordResetTokenRecord {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  createdAt: Date;
+}
+
 export class MockDataStore {
   public departments = new Map<string, DepartmentSeed>();
   public departmentBudgets = new Map<string, DepartmentBudgetSeed>();
   public users = new Map<string, UserSeed>();
+  public passwordResetTokens = new Map<string, PasswordResetTokenRecord>();
   public categories = new Map<string, CategorySeed>();
   public products = new Map<string, ProductSeed>();
   public orders = new Map<string, OrderRecord>();
@@ -82,6 +92,7 @@ export class MockDataStore {
     for (const b of SEED_BUDGETS) this.departmentBudgets.set(b.id, { ...b });
 
     this.users.clear();
+    this.passwordResetTokens.clear();
     for (const u of SEED_USERS) this.users.set(u.id, { ...u });
     // Also register mock persona users
     this.users.set("user-bob-emp", {
@@ -595,13 +606,127 @@ export class MockDataStore {
   }
 
   public updateStoreSettings(data: Partial<StoreSettingsSeed>): StoreSettingsSeed {
+    const definedEntries = Object.entries(data).filter(([, val]) => val !== undefined);
+    const cleanData = Object.fromEntries(definedEntries) as Partial<StoreSettingsSeed>;
     this.storeSettings = {
       ...this.storeSettings,
-      ...data,
+      ...cleanData,
       id: 1, // ensure singleton id remains 1
       updatedAt: new Date(),
     };
     return { ...this.storeSettings };
+  }
+
+  // ---------------------------------------------------------------------------
+  // USERS & AUTHENTICATION
+  // ---------------------------------------------------------------------------
+
+  public findUserByEmail(email: string): UserSeed | null {
+    const normalized = email.trim().toLowerCase();
+    for (const u of this.users.values()) {
+      if (u.email.toLowerCase() === normalized) {
+        return { ...u };
+      }
+    }
+    return null;
+  }
+
+  public findUserById(id: string): UserSeed | null {
+    const u = this.users.get(id);
+    return u ? { ...u } : null;
+  }
+
+  public createLocalUser(data: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    departmentId: string | null;
+  }): UserSeed {
+    const existing = this.findUserByEmail(data.email);
+    if (existing) {
+      throw new Error("Account with this email already exists");
+    }
+    const id = crypto.randomUUID();
+    const now = new Date();
+    const created: UserSeed = {
+      id,
+      clerkId: `local_${id}`,
+      email: data.email.trim().toLowerCase(),
+      name: data.name.trim(),
+      passwordHash: data.passwordHash,
+      sessionVersion: 1,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      role: "EMPLOYEE", // Least-privilege default on self-registration
+      departmentId: data.departmentId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.users.set(id, created);
+    return { ...created };
+  }
+
+  public updateUserAuth(
+    userId: string,
+    updates: Partial<
+      Pick<UserSeed, "passwordHash" | "sessionVersion" | "failedLoginAttempts" | "lockedUntil">
+    >
+  ): UserSeed | null {
+    const u = this.users.get(userId);
+    if (!u) return null;
+    const updated: UserSeed = {
+      ...u,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.users.set(userId, updated);
+    return { ...updated };
+  }
+
+  public createPasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiresAt: Date
+  ): PasswordResetTokenRecord {
+    // Invalidate any prior unused tokens for this user
+    for (const rec of this.passwordResetTokens.values()) {
+      if (rec.userId === userId && !rec.usedAt) {
+        rec.usedAt = new Date();
+      }
+    }
+    const id = crypto.randomUUID();
+    const record: PasswordResetTokenRecord = {
+      id,
+      userId,
+      tokenHash,
+      expiresAt,
+      usedAt: null,
+      createdAt: new Date(),
+    };
+    this.passwordResetTokens.set(tokenHash, record);
+    return { ...record };
+  }
+
+  public consumePasswordResetToken(
+    tokenHash: string,
+    newPasswordHash: string
+  ): { userId: string } | null {
+    const rec = this.passwordResetTokens.get(tokenHash);
+    if (!rec) return null;
+    if (rec.usedAt !== null) return null;
+    if (rec.expiresAt.getTime() <= Date.now()) return null;
+
+    rec.usedAt = new Date();
+    const user = this.users.get(rec.userId);
+    if (!user) return null;
+
+    user.passwordHash = newPasswordHash;
+    user.sessionVersion = (user.sessionVersion ?? 1) + 1;
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    user.updatedAt = new Date();
+    this.users.set(user.id, user);
+    return { userId: user.id };
   }
 
   // ---------------------------------------------------------------------------

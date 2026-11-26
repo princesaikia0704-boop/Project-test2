@@ -1,56 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withApiReliability, createErrorResponse } from "@/lib/http/api-handler";
+import { withApiReliability, createErrorResponse, getRequestAuth } from "@/lib/http/api-handler";
 import { adjustProductStock } from "@/services/inventory.service";
 import { DomainError } from "@/services/order.service";
+import { stockAdjustSchema } from "@/lib/validators/product.schema";
+import { safeIdentifierSchema } from "@/lib/validators/order.schema";
 
 export const POST = withApiReliability(
-  async (req: NextRequest, context?: { params: Promise<{ productId: string }> | { productId: string } }) => {
-    const params = context?.params ? await context.params : null;
-    const productId = params?.productId;
-
-    if (!productId) {
-      return createErrorResponse("InvalidProductId", "Product ID is required", 400);
+  async (
+    req: NextRequest,
+    context?: { params: Promise<{ productId: string }> | { productId: string } }
+  ) => {
+    const authUser = await getRequestAuth(req);
+    if (!authUser) {
+      return createErrorResponse("Unauthorized", "Authentication required", 401);
     }
 
-    let body: any;
+    const params = context?.params ? await context.params : null;
+    const productIdCheck = safeIdentifierSchema.safeParse(params?.productId);
+    if (!productIdCheck.success) {
+      return createErrorResponse("InvalidProductId", "Valid product ID is required", 400);
+    }
+    const productId = productIdCheck.data;
+
+    let rawBody: unknown;
     try {
-      body = await req.json();
+      rawBody = await req.json();
     } catch {
       return createErrorResponse(
-        "InvalidOrderPayload",
+        "ValidationError",
         "Request body must be valid JSON",
         400
       );
     }
 
-    if (!body || typeof body !== "object") {
-      return createErrorResponse(
-        "MissingReason",
-        "Adjustment reason is required",
-        400
-      );
+    const parsed = stockAdjustSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || "Invalid stock adjustment payload";
+      const code = msg.toLowerCase().includes("reason")
+        ? "MissingReason"
+        : msg.toLowerCase().includes("less than 0")
+        ? "NegativeStockError"
+        : "ValidationError";
+      return createErrorResponse(code, msg, 400);
     }
-
-    if (!body.reason || typeof body.reason !== "string" || !body.reason.trim()) {
-      return createErrorResponse(
-        "MissingReason",
-        "Adjustment reason is required",
-        400
-      );
-    }
-
-    const adminUserId =
-      req.headers.get("x-user-id") ||
-      req.cookies.get("mock_persona")?.value ||
-      "admin";
 
     try {
       const result = await adjustProductStock({
         productId,
-        newQuantity: typeof body.newQuantity === "number" ? body.newQuantity : undefined,
-        delta: typeof body.delta === "number" ? body.delta : undefined,
-        reason: body.reason.trim(),
-        adminUserId,
+        newQuantity: parsed.data.newQuantity,
+        delta: parsed.data.delta,
+        reason: parsed.data.reason,
+        adminUserId: authUser.id,
       });
 
       return NextResponse.json(
@@ -69,5 +69,5 @@ export const POST = withApiReliability(
       throw err;
     }
   },
-  { allowedRoles: ["ADMIN", "MANAGER"] }
+  { allowedRoles: ["ADMIN"] }
 );

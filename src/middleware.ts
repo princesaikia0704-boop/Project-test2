@@ -316,33 +316,23 @@ async function handleCoreMiddleware(
   return response;
 }
 
-let cachedClerkHandler:
-  | ReturnType<typeof clerkMiddleware>
-  | undefined;
+const clerkMiddlewareHandler = clerkMiddleware(async (auth, req: NextRequest) => {
+  const { userId, sessionClaims } = await auth();
+  const metadataRole = (sessionClaims?.metadata as { role?: string } | undefined)?.role;
+  const normalizedRole =
+    metadataRole === "ADMIN" || metadataRole === "MANAGER" || metadataRole === "EMPLOYEE"
+      ? metadataRole
+      : null;
 
-function getClerkMiddlewareHandler() {
-  if (!cachedClerkHandler) {
-    cachedClerkHandler = clerkMiddleware(async (auth, req: NextRequest) => {
-      const { userId, sessionClaims } = await auth();
-      const metadataRole = (sessionClaims?.metadata as { role?: string } | undefined)?.role;
-      const normalizedRole =
-        metadataRole === "ADMIN" || metadataRole === "MANAGER" || metadataRole === "EMPLOYEE"
-          ? metadataRole
-          : null;
-
-      return await handleCoreMiddleware(req, {
-        userId: userId ?? null,
-        role: normalizedRole,
-      });
-    });
-  }
-  return cachedClerkHandler;
-}
+  return await handleCoreMiddleware(req, {
+    userId: userId ?? null,
+    role: normalizedRole,
+  });
+});
 
 export default async function middleware(req: NextRequest, event: any) {
   if (isClerkConfigured()) {
-    const clerkHandler = getClerkMiddlewareHandler();
-    return await clerkHandler(req, event);
+    return await clerkMiddlewareHandler(req, event);
   }
   return await handleCoreMiddleware(req);
 }

@@ -5,7 +5,7 @@
 
 import type { NextRequest } from "next/server";
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { Redis } from "@upstash/redis/cloudflare";
 import { isServiceMocked } from "@/lib/mock/utils";
 
 export interface RateLimitPolicy {

@@ -6,6 +6,7 @@ import { attachSessionCookie, signSessionToken } from "@/lib/auth/session";
 import { isDemoAuthEnabled } from "@/lib/mock/utils";
 import { logSecurityEvent } from "@/lib/security/logger";
 import { extractTrustedClientIp } from "@/lib/security/rate-limit";
+import { checkSessionSigningReady } from "@/lib/auth/db-auth-utils";
 
 export const POST = withApiReliability(async (req: NextRequest) => {
   const clientIp = extractTrustedClientIp(req);
@@ -24,6 +25,15 @@ export const POST = withApiReliability(async (req: NextRequest) => {
       "Demo authentication is disabled in this environment.",
       403
     );
+  }
+
+  const signingReady = checkSessionSigningReady({
+    path: "/api/auth/demo-session",
+    method: "POST",
+    ip: clientIp,
+  });
+  if (!signingReady.ok) {
+    return createErrorResponse(signingReady.error, signingReady.message, signingReady.statusCode);
   }
 
   let rawBody: unknown;

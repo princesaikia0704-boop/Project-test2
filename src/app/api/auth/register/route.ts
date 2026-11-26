@@ -10,11 +10,25 @@ import { isDatabaseMocked } from "@/lib/mock/utils";
 import { normalizeDepartmentUuid } from "@/lib/utils";
 import { logSecurityEvent } from "@/lib/security/logger";
 import { extractTrustedClientIp } from "@/lib/security/rate-limit";
+import {
+  checkSessionSigningReady,
+  classifyAuthDbError,
+  resolveSafeDepartmentId,
+} from "@/lib/auth/db-auth-utils";
 
 const DEFAULT_DEPT_UUID = "10000000-0000-0000-0000-000000000001";
 
 export const POST = withApiReliability(async (req: NextRequest) => {
   const clientIp = extractTrustedClientIp(req);
+
+  const signingReady = checkSessionSigningReady({
+    path: "/api/auth/register",
+    method: "POST",
+    ip: clientIp,
+  });
+  if (!signingReady.ok) {
+    return createErrorResponse(signingReady.error, signingReady.message, signingReady.statusCode);
+  }
 
   let rawBody: unknown;
   try {
@@ -93,35 +107,69 @@ export const POST = withApiReliability(async (req: NextRequest) => {
   }
 
   // Live PostgreSQL path
-  const existing = await db
-    .select({ id: schema.users.id })
-    .from(schema.users)
-    .where(eq(schema.users.email, email))
-    .limit(1);
+  let created: {
+    id: string;
+    name: string;
+    email: string;
+    role: "EMPLOYEE" | "MANAGER" | "ADMIN";
+    departmentId: string | null;
+    sessionVersion: number;
+  };
 
-  if (existing.length > 0) {
-    return createErrorResponse("AccountExists", "Unable to register with this email", 409);
-  }
+  try {
+    const existing = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
 
-  const [created] = await db
-    .insert(schema.users)
-    .values({
-      clerkId: `local_${crypto.randomUUID()}`,
-      email,
-      name,
-      passwordHash,
-      sessionVersion: 1,
-      role: "EMPLOYEE", // Least-privilege default on self-registration
+    if (existing.length > 0) {
+      return createErrorResponse("AccountExists", "Unable to register with this email", 409);
+    }
+
+    const deptResolution = await resolveSafeDepartmentId(
       departmentId,
-    })
-    .returning({
-      id: schema.users.id,
-      name: schema.users.name,
-      email: schema.users.email,
-      role: schema.users.role,
-      departmentId: schema.users.departmentId,
-      sessionVersion: schema.users.sessionVersion,
+      Boolean(departmentSlug)
+    );
+    if (!deptResolution.ok) {
+      return createErrorResponse("ValidationError", deptResolution.message, 400);
+    }
+
+    const inserted = await db
+      .insert(schema.users)
+      .values({
+        clerkId: `local_${crypto.randomUUID()}`,
+        email,
+        name,
+        passwordHash,
+        sessionVersion: 1,
+        role: "EMPLOYEE", // Least-privilege default on self-registration
+        departmentId: deptResolution.departmentId,
+      })
+      .returning({
+        id: schema.users.id,
+        name: schema.users.name,
+        email: schema.users.email,
+        role: schema.users.role,
+        departmentId: schema.users.departmentId,
+        sessionVersion: schema.users.sessionVersion,
+      });
+
+    if (!inserted[0]) {
+      throw new Error("Failed to create user record");
+    }
+    created = inserted[0];
+  } catch (err) {
+    const classified = classifyAuthDbError(err, {
+      path: "/api/auth/register",
+      method: "POST",
+      ip: clientIp,
     });
+    if (classified) {
+      return createErrorResponse(classified.error, classified.message, classified.statusCode);
+    }
+    throw err;
+  }
 
   const token = await signSessionToken({
     sub: created.id,

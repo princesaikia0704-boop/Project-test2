@@ -856,9 +856,7 @@ declare global {
 }
 
 export const mockDataStore = globalThis._mockDataStore ?? new MockDataStore();
-if (process.env.NODE_ENV !== "production") {
-  globalThis._mockDataStore = mockDataStore;
-}
+globalThis._mockDataStore = mockDataStore;
 
 /**
  * Creates a Drizzle-compatible database proxy routing to MockDataStore

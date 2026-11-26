@@ -239,10 +239,11 @@ async function handleCoreMiddleware(
   // 6. Strict Server-Side Edge RBAC (API routes also independently enforce DB roles via withApiReliability)
   const isAdminRoute = pathname.startsWith("/api/admin/") || pathname.startsWith("/admin");
   if (sessionUserId && sessionRole && isAdminRoute) {
-    const isAllowedEmployeeBrandingGet =
-      pathname === "/api/admin/store-config" && req.method === "GET";
+    const isAllowedEmployeeStorefrontGet =
+      req.method === "GET" &&
+      (pathname === "/api/admin/store-config" || pathname === "/api/admin/categories");
 
-    if (sessionRole === "EMPLOYEE" && !isAllowedEmployeeBrandingGet) {
+    if (sessionRole === "EMPLOYEE" && !isAllowedEmployeeStorefrontGet) {
       logSecurityEvent({
         event: "RBAC_ACCESS_DENIED",
         severity: "HIGH",

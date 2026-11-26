@@ -8,6 +8,7 @@ import { db, schema, mockDataStore } from "@/lib/db";
 import { isDatabaseMocked } from "@/lib/mock/utils";
 import { logSecurityEvent } from "@/lib/security/logger";
 import { extractTrustedClientIp } from "@/lib/security/rate-limit";
+import { checkSessionSigningReady, classifyAuthDbError } from "@/lib/auth/db-auth-utils";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -15,6 +16,15 @@ const DEFAULT_DEPT_UUID = "10000000-0000-0000-0000-000000000001";
 
 export const POST = withApiReliability(async (req: NextRequest) => {
   const clientIp = extractTrustedClientIp(req);
+
+  const signingReady = checkSessionSigningReady({
+    path: "/api/auth/login",
+    method: "POST",
+    ip: clientIp,
+  });
+  if (!signingReady.ok) {
+    return createErrorResponse(signingReady.error, signingReady.message, signingReady.statusCode);
+  }
 
   let rawBody: unknown;
   try {
@@ -116,73 +126,98 @@ export const POST = withApiReliability(async (req: NextRequest) => {
   }
 
   // Live PostgreSQL path
-  const rows = await db
-    .select({
-      id: schema.users.id,
-      name: schema.users.name,
-      email: schema.users.email,
-      role: schema.users.role,
-      departmentId: schema.users.departmentId,
-      passwordHash: schema.users.passwordHash,
-      sessionVersion: schema.users.sessionVersion,
-      failedLoginAttempts: schema.users.failedLoginAttempts,
-      lockedUntil: schema.users.lockedUntil,
-    })
-    .from(schema.users)
-    .where(eq(schema.users.email, email))
-    .limit(1);
+  let user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "EMPLOYEE" | "MANAGER" | "ADMIN";
+    departmentId: string | null;
+    passwordHash: string | null;
+    sessionVersion: number;
+    failedLoginAttempts: number;
+    lockedUntil: Date | null;
+  } | null = null;
 
-  const user = rows[0] ?? null;
+  try {
+    const rows = await db
+      .select({
+        id: schema.users.id,
+        name: schema.users.name,
+        email: schema.users.email,
+        role: schema.users.role,
+        departmentId: schema.users.departmentId,
+        passwordHash: schema.users.passwordHash,
+        sessionVersion: schema.users.sessionVersion,
+        failedLoginAttempts: schema.users.failedLoginAttempts,
+        lockedUntil: schema.users.lockedUntil,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.email, email))
+      .limit(1);
 
-  if (user?.lockedUntil && new Date(user.lockedUntil).getTime() > now.getTime()) {
-    logSecurityEvent({
-      event: "AUTH_LOCKOUT",
-      severity: "HIGH",
-      userId: user.id,
-      ip: clientIp,
-      path: "/api/auth/login",
-      method: "POST",
-      reason: "Account temporarily locked due to repeated failed logins",
-    });
-    return createErrorResponse(
-      "AccountLocked",
-      "Too many failed login attempts. Please try again in 15 minutes.",
-      429
-    );
-  }
+    user = rows[0] ?? null;
 
-  const isMatch = await verifyPassword(password, user?.passwordHash ?? null);
-  if (!user || !isMatch) {
-    if (user) {
-      const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
-      await db
-        .update(schema.users)
-        .set({
-          failedLoginAttempts: nextAttempts,
-          lockedUntil:
-            nextAttempts >= MAX_FAILED_ATTEMPTS
-              ? new Date(now.getTime() + LOCKOUT_DURATION_MS)
-              : null,
-          updatedAt: now,
-        })
-        .where(eq(schema.users.id, user.id));
+    if (user?.lockedUntil && new Date(user.lockedUntil).getTime() > now.getTime()) {
+      logSecurityEvent({
+        event: "AUTH_LOCKOUT",
+        severity: "HIGH",
+        userId: user.id,
+        ip: clientIp,
+        path: "/api/auth/login",
+        method: "POST",
+        reason: "Account temporarily locked due to repeated failed logins",
+      });
+      return createErrorResponse(
+        "AccountLocked",
+        "Too many failed login attempts. Please try again in 15 minutes.",
+        429
+      );
     }
-    logSecurityEvent({
-      event: "AUTH_LOGIN_FAILURE",
-      severity: "WARN",
-      userId: user?.id ?? null,
-      ip: clientIp,
+
+    const isMatch = await verifyPassword(password, user?.passwordHash ?? null);
+    if (!user || !isMatch) {
+      if (user) {
+        const nextAttempts = (user.failedLoginAttempts ?? 0) + 1;
+        await db
+          .update(schema.users)
+          .set({
+            failedLoginAttempts: nextAttempts,
+            lockedUntil:
+              nextAttempts >= MAX_FAILED_ATTEMPTS
+                ? new Date(now.getTime() + LOCKOUT_DURATION_MS)
+                : null,
+            updatedAt: now,
+          })
+          .where(eq(schema.users.id, user.id));
+      }
+      logSecurityEvent({
+        event: "AUTH_LOGIN_FAILURE",
+        severity: "WARN",
+        userId: user?.id ?? null,
+        ip: clientIp,
+        path: "/api/auth/login",
+        method: "POST",
+        reason: "Invalid email or password",
+      });
+      return createErrorResponse("InvalidCredentials", "Invalid email or password", 401);
+    }
+
+    await db
+      .update(schema.users)
+      .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: now })
+      .where(eq(schema.users.id, user.id));
+  } catch (err) {
+    const classified = classifyAuthDbError(err, {
       path: "/api/auth/login",
       method: "POST",
-      reason: "Invalid email or password",
+      ip: clientIp,
+      userId: user?.id ?? null,
     });
-    return createErrorResponse("InvalidCredentials", "Invalid email or password", 401);
+    if (classified) {
+      return createErrorResponse(classified.error, classified.message, classified.statusCode);
+    }
+    throw err;
   }
-
-  await db
-    .update(schema.users)
-    .set({ failedLoginAttempts: 0, lockedUntil: null, updatedAt: now })
-    .where(eq(schema.users.id, user.id));
 
   const token = await signSessionToken({
     sub: user.id,

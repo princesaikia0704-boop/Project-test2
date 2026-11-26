@@ -8,11 +8,13 @@ import type { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema, mockDataStore } from "@/lib/db";
 import { isClerkConfigured, isDatabaseMocked, isDemoAuthEnabled } from "@/lib/mock/utils";
+import { isUuid } from "@/lib/utils";
 import {
   SESSION_COOKIE_NAME,
   UserRole,
   verifySessionToken,
 } from "./session";
+import { resolveSafeDepartmentId } from "./db-auth-utils";
 import { logSecurityEvent } from "@/lib/security/logger";
 
 export interface AuthenticatedUser {
@@ -151,6 +153,7 @@ async function resolveClerkAuthenticatedUser(): Promise<AuthenticatedUser | null
       };
     }
 
+    const deptRes = await resolveSafeDepartmentId(DEFAULT_DEPARTMENT_UUID, false);
     const [created] = await db
       .insert(schema.users)
       .values({
@@ -158,7 +161,7 @@ async function resolveClerkAuthenticatedUser(): Promise<AuthenticatedUser | null
         email,
         name,
         role: "EMPLOYEE",
-        departmentId: DEFAULT_DEPARTMENT_UUID,
+        departmentId: deptRes.ok ? deptRes.departmentId : null,
       })
       .returning({
         id: schema.users.id,
@@ -247,31 +250,47 @@ export async function resolveServerSession(
     };
   }
 
-  const rows = await db
-    .select({
-      id: schema.users.id,
-      role: schema.users.role,
-      departmentId: schema.users.departmentId,
-      email: schema.users.email,
-      name: schema.users.name,
-      sessionVersion: schema.users.sessionVersion,
-    })
-    .from(schema.users)
-    .where(eq(schema.users.id, payload.sub))
-    .limit(1);
-
-  if (rows.length === 0) return null;
-  const dbUser = rows[0];
-  if (dbUser.sessionVersion !== payload.ver) {
+  if (!isUuid(payload.sub)) {
     return null;
   }
 
-  return {
-    id: dbUser.id,
-    role: dbUser.role,
-    departmentId: dbUser.departmentId || DEFAULT_DEPARTMENT_UUID,
-    email: dbUser.email,
-    name: dbUser.name,
-    authProvider: "session",
-  };
+  try {
+    const rows = await db
+      .select({
+        id: schema.users.id,
+        role: schema.users.role,
+        departmentId: schema.users.departmentId,
+        email: schema.users.email,
+        name: schema.users.name,
+        sessionVersion: schema.users.sessionVersion,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.id, payload.sub))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+    const dbUser = rows[0];
+    if (dbUser.sessionVersion !== payload.ver) {
+      return null;
+    }
+
+    return {
+      id: dbUser.id,
+      role: dbUser.role,
+      departmentId: dbUser.departmentId || DEFAULT_DEPARTMENT_UUID,
+      email: dbUser.email,
+      name: dbUser.name,
+      authProvider: "session",
+    };
+  } catch (err: any) {
+    logSecurityEvent({
+      event: "AUTH_SESSION_INVALID",
+      severity: "WARN",
+      userId: payload.sub,
+      path: req.nextUrl?.pathname,
+      method: req.method,
+      reason: err?.message || "Session user DB lookup failed",
+    });
+    return null;
+  }
 }

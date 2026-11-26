@@ -62,10 +62,13 @@ function initializeDatabase() {
   }
 
   // 2. Production / Live Neon PostgreSQL Setup with SSL/TLS Enforcement
-  const rawConnectionString =
+  const rawConnectionString = (
     process.env.DATABASE_URL_POOLED ||
     process.env.DATABASE_URL ||
-    "";
+    ""
+  )
+    .trim()
+    .replace(/^["']|["']$/g, "");
 
   if (!rawConnectionString) {
     // Allow Next.js build-time module evaluation when DB URL is injected at runtime,

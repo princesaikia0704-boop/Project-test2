@@ -68,6 +68,10 @@ function getSessionSecretString(): string | null {
   );
 }
 
+export function isSessionSigningConfigured(): boolean {
+  return getSessionSecretString() !== null;
+}
+
 async function importHmacKey(secret: string, usage: ("sign" | "verify")[]): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyData = encoder.encode(secret);

@@ -6,6 +6,7 @@ import { consumePasswordResetToken } from "@/lib/auth/password-reset";
 import { clearSessionCookies } from "@/lib/auth/session";
 import { logSecurityEvent } from "@/lib/security/logger";
 import { extractTrustedClientIp } from "@/lib/security/rate-limit";
+import { classifyAuthDbError } from "@/lib/auth/db-auth-utils";
 
 export const POST = withApiReliability(async (req: NextRequest) => {
   const clientIp = extractTrustedClientIp(req);
@@ -35,7 +36,20 @@ export const POST = withApiReliability(async (req: NextRequest) => {
   }
 
   const newHash = await hashPassword(parsed.data.newPassword);
-  const consumed = await consumePasswordResetToken(parsed.data.token, newHash);
+  let consumed: { ok: true; userId: string } | { ok: false };
+  try {
+    consumed = await consumePasswordResetToken(parsed.data.token, newHash);
+  } catch (err) {
+    const classified = classifyAuthDbError(err, {
+      path: "/api/auth/reset-password",
+      method: "POST",
+      ip: clientIp,
+    });
+    if (classified) {
+      return createErrorResponse(classified.error, classified.message, classified.statusCode);
+    }
+    throw err;
+  }
 
   if (!consumed.ok) {
     logSecurityEvent({

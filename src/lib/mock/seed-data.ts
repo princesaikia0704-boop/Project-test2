@@ -109,6 +109,13 @@ export const SEED_DEPARTMENTS: DepartmentSeed[] = [
     createdAt: THIRTY_DAYS_AGO,
     updatedAt: THIRTY_DAYS_AGO,
   },
+  {
+    id: "10000000-0000-0000-0000-000000000005",
+    name: "Operations",
+    code: "OPS",
+    createdAt: THIRTY_DAYS_AGO,
+    updatedAt: THIRTY_DAYS_AGO,
+  },
 ];
 
 export const SEED_BUDGETS: DepartmentBudgetSeed[] = [

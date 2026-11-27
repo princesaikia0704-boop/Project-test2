@@ -126,7 +126,7 @@ export class MockDataStore {
       updatedAt: new Date(),
     });
 
-    // Ensure Operations department exists
+    // Ensure Operations department and legacy slug alias exist in mock store
     if (!this.departments.has("10000000-0000-0000-0000-000000000005")) {
       this.departments.set("10000000-0000-0000-0000-000000000005", {
         id: "10000000-0000-0000-0000-000000000005",
@@ -135,6 +135,8 @@ export class MockDataStore {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+    }
+    if (!this.departments.has("dept-ops")) {
       this.departments.set("dept-ops", {
         id: "dept-ops",
         name: "Operations",

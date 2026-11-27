@@ -47,19 +47,21 @@ function fromBase64Url(input: string): Uint8Array | null {
 }
 
 function getSessionSecretString(): string | null {
+  // Primary: explicit SESSION_SECRET env var (required in production)
   const configured = process.env.SESSION_SECRET?.trim();
   if (configured && configured.length >= 16) {
     return configured;
   }
 
-  const clerkSecret = process.env.CLERK_SECRET_KEY?.trim();
-  if (clerkSecret && !clerkSecret.includes("placeholder") && clerkSecret.length >= 24) {
-    return `clerk-derived:${clerkSecret}`;
-  }
-
   // In production, never fall back to any static or predictable signing key
   if (process.env.NODE_ENV === "production") {
     return null;
+  }
+
+  // Development-only fallbacks (never used in production)
+  const clerkSecret = process.env.CLERK_SECRET_KEY?.trim();
+  if (clerkSecret && !clerkSecret.includes("placeholder") && clerkSecret.length >= 24) {
+    return `clerk-derived:${clerkSecret}`;
   }
 
   return (
